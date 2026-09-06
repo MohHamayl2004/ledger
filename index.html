@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d17">
+<title>دفتر الحسابات</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%236c5ce7'/%3E%3Cpath d='M20 42V22h10a7 7 0 010 14h-6l10 6' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ═══════════ SVG icon sprite ═══════════ -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="m9 11 3 3L22 4"/></symbol>
+  <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M17 13h.01"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="m21 8-9-5-9 5v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19a4.5 4.5 0 0 0 .5-9 6 6 0 0 0-11.6-1.5A4.5 4.5 0 0 0 6.5 19z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></symbol>
+</svg>
+
+<div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<section id="login" class="login">
+  <form class="login-card glass" id="loginForm" autocomplete="on">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="18"/><path d="M22 44V20h10a8 8 0 0 1 0 16h-6l11 8" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h1 class="login-title">دفتر الحسابات</h1>
+    <p class="login-sub">سجّل دخولك للمتابعة</p>
+
+    <div class="field">
+      <label for="lu">اسم المستخدم</label>
+      <div class="input-wrap">
+        <svg class="ico"><use href="#i-user"/></svg>
+        <input id="lu" name="username" type="text" autocomplete="username" required placeholder="mohammad" dir="ltr">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="lp">كلمة المرور</label>
+      <div class="input-wrap">
+        <svg class="ico"><use href="#i-lock"/></svg>
+        <input id="lp" name="password" type="password" autocomplete="current-password" required placeholder="••••" dir="ltr">
+        <button type="button" class="peek" id="peek" aria-label="إظهار كلمة المرور"><svg><use href="#i-eye"/></svg></button>
+      </div>
+    </div>
+
+    <p class="form-error" id="loginErr" role="alert" hidden></p>
+    <button class="btn btn-primary btn-lg" type="submit">دخول</button>
+    <button class="theme-toggle ghost-toggle" type="button" data-theme-toggle aria-label="تبديل الوضع الليلي">
+      <svg class="s-sun"><use href="#i-sun"/></svg><svg class="s-moon"><use href="#i-moon"/></svg>
+    </button>
+  </form>
+</section>
+
+<!-- ═══════════ APP ═══════════ -->
+<div id="app" class="app" hidden>
+
+  <header class="topbar glass">
+    <div class="tb-right">
+      <div class="brand">
+        <svg class="brand-ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="18"/><path d="M22 44V20h10a8 8 0 0 1 0 16h-6l11 8" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>دفتر الحسابات</span>
+      </div>
+      <span class="sync-pill" id="syncPill" title="حالة التخزين"><svg><use href="#i-cloud"/></svg><span id="syncTxt">محلي</span></span>
+    </div>
+    <div class="tb-left">
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="تبديل الوضع الليلي">
+        <svg class="s-sun"><use href="#i-sun"/></svg><svg class="s-moon"><use href="#i-moon"/></svg>
+      </button>
+      <div class="user-chip"><span class="avatar" id="uAvatar">م</span><span id="uName">محمد</span></div>
+      <button class="icon-btn" id="logoutBtn" type="button" aria-label="تسجيل الخروج"><svg><use href="#i-out"/></svg></button>
+    </div>
+  </header>
+
+  <nav class="sidenav" aria-label="التنقل الرئيسي">
+    <button class="nav-item is-active" data-view="dash"><svg><use href="#i-home"/></svg><span>لوحة التحكم</span></button>
+    <button class="nav-item" data-view="people"><svg><use href="#i-users"/></svg><span>الحسابات</span></button>
+    <button class="nav-item" data-view="tx"><svg><use href="#i-list"/></svg><span>الحركات</span></button>
+    <button class="nav-item" data-view="ready"><svg><use href="#i-check"/></svg><span>جاهزة</span><b class="nav-badge" id="readyBadge" hidden>0</b></button>
+    <button class="nav-item" data-view="settings"><svg><use href="#i-cog"/></svg><span>الإعدادات</span></button>
+  </nav>
+
+  <main class="main" id="main"></main>
+
+  <button class="fab" id="fab" type="button" aria-label="إضافة حساب جديد"><svg><use href="#i-plus"/></svg></button>
+</div>
+
+<!-- modal host -->
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet-host" id="sheetHost" hidden role="dialog" aria-modal="true"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

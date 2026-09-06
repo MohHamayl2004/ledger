@@ -1,0 +1,18 @@
+{
+  "name": "دفتر الحسابات",
+  "short_name": "الدفتر",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#080a14",
+  "theme_color": "#080a14",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='128' fill='%236c5ce7'/%3E%3Cpath d='M160 336V176h80a56 56 0 010 112h-48l88 48' stroke='%23fff' stroke-width='40' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
