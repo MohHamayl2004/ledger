@@ -20,15 +20,13 @@ export const DEFAULTS = {
   currency: "₪"
 };
 
-/* 3) إعدادات Firebase — للمزامنة بين محمد ورزان
-      انسخ الكائن اللي بيعطيك ياه Firebase وحطّه هون بدل الفاضي.
-      إذا خليته زي ما هو، الموقع بيشتغل عادي بس البيانات بتنحفظ
-      على الجهاز نفسه فقط (بدون مزامنة). */
+/* 3) إعدادات Firebase — المزامنة بين محمد ورزان
+      مشروع: ledger-375cb */
 export const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyCwl5clICUQspKA0v6B-ZZA9u28t6RXqGs",
+  authDomain: "ledger-375cb.firebaseapp.com",
+  projectId: "ledger-375cb",
+  storageBucket: "ledger-375cb.firebasestorage.app",
+  messagingSenderId: "864369781592",
+  appId: "1:864369781592:web:6171b2b5a6d9674fca532d"
 };
