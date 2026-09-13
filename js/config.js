@@ -14,7 +14,7 @@ export const USERS = [
 export const DEFAULTS = {
   defaultCap: 5700,       // سقف الاستقبال الشهري الافتراضي لكل حساب
   readyThreshold: 100,    // إذا الرصيد نزل تحت هالرقم → الحساب "جاهز"
-  returnDelayDays: 3,     // بعد كم يوم بتنضاف "القطعة الراجعة" للرصيد
+  returnDelayDays: 2,     // بعد كم يوم بتنضاف "القطعة الراجعة" للرصيد
   counterMin: 1650,       // أقل مبلغ خصم بيحسب طلبية في الكاونتر
   counterMax: 1750,       // أعلى مبلغ خصم بيحسب طلبية في الكاونتر
   currency: "₪"
