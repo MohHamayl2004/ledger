@@ -130,7 +130,10 @@ async function login(base, { login, password }) {
     return { ok: true, session: sid };
   }
   const t = await res.text();
-  if (/wrong login|كلمة المرور|incorrect|invalid/i.test(t)) return { ok: false, error: 'يونايتد رفض الدخول — الاسم أو كلمة السر غلط' };
-  if (/totp|two.?factor|verification code/i.test(t)) return { ok: false, error: 'حسابك عليه تحقق بخطوتين — استعمل خيار «لصق الجلسة يدوياً»' };
-  return { ok: false, error: 'ما زبط الدخول (HTTP ' + res.status + ')' };
+  // رسالة الخطأ اللي يونايتد نفسه بيعرضها بصفحة الدخول
+  const alert = /<(?:p|div)[^>]*class="[^"]*alert-danger[^"]*"[^>]*>([\s\S]*?)<\/(?:p|div)>/i.exec(t);
+  const said = alert ? alert[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  if (/name="totp_token"|two.?factor|verification code/i.test(t)) return { ok: false, error: 'حسابك عليه تحقق بخطوتين — استعمل خيار «لصق الجلسة يدوياً»' };
+  if (said) return { ok: false, error: 'يونايتد رفض الدخول: «' + said.slice(0, 200) + '»' };
+  return { ok: false, error: 'يونايتد رجّع صفحة الدخول بدون سبب واضح (HTTP ' + res.status + ') — جرّب الإيميل بدل رقم التلفون، أو تأكد من كلمة السر' };
 }
