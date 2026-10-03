@@ -2,14 +2,11 @@
    ملف الإعدادات — هذا الملف الوحيد اللي بتعدّل عليه
    ============================================================ */
 
-/* 1) المستخدمين المسموح لهم بالدخول
-      غيّر الاسم أو كلمة المرور من هون */
-export const USERS = [
-  { user: "mohammad", pass: "123", name: "محمد" },
-  { user: "razan",    pass: "123", name: "رزان" }
-];
+/* 1) المستخدمين
+      صاروا حسابات حقيقية على Firebase (إيميل + كلمة سر).
+      لإضافة شخص جديد شوف README → «إضافة مستخدم». */
 
-/* 2) الإعدادات الافتراضية للنظام
+/* 2) الإعدادات الافتراضية لدفتر الحسابات
       (بتقدر تغيّرها كمان من داخل الموقع → الإعدادات) */
 export const DEFAULTS = {
   defaultCap: 5700,       // سقف الاستقبال الشهري الافتراضي لكل حساب
@@ -20,8 +17,8 @@ export const DEFAULTS = {
   currency: "₪"
 };
 
-/* 3) إعدادات Firebase — المزامنة بين محمد ورزان
-      مشروع: ledger-375cb */
+/* 3) إعدادات Firebase — مشروع: ledger-375cb
+      (هاي القيم مش سرّية؛ الحماية الحقيقية بقواعد Firestore بملف firestore.rules) */
 export const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCwl5clICUQspKA0v6B-ZZA9u28t6RXqGs",
   authDomain: "ledger-375cb.firebaseapp.com",
@@ -30,3 +27,8 @@ export const FIREBASE_CONFIG = {
   messagingSenderId: "864369781592",
   appId: "1:864369781592:web:6171b2b5a6d9674fca532d"
 };
+
+/* 4) رابط الوسيط تبع يونايتد (Cloudflare Worker)
+      بعد ما ترفع ملف worker/united-proxy.js حط الرابط هون، مثلاً:
+      "https://united-proxy.اسمك.workers.dev" */
+export const UNITED_PROXY = "";

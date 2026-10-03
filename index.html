@@ -48,7 +48,7 @@
 <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
 
 <!-- ═══════════ LOGIN ═══════════ -->
-<section id="login" class="login">
+<section id="login" class="login" hidden>
   <form class="login-card glass" id="loginForm" autocomplete="on">
     <div class="brand-mark" aria-hidden="true">
       <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="18"/><path d="M22 44V20h10a8 8 0 0 1 0 16h-6l11 8" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -57,10 +57,10 @@
     <p class="login-sub">سجّل دخولك للمتابعة</p>
 
     <div class="field">
-      <label for="lu">اسم المستخدم</label>
+      <label for="lu">الإيميل</label>
       <div class="input-wrap">
         <svg class="ico"><use href="#i-user"/></svg>
-        <input id="lu" name="username" type="text" autocomplete="username" required placeholder="mohammad" dir="ltr">
+        <input id="lu" name="email" type="email" autocomplete="username" required placeholder="name@example.com" dir="ltr">
       </div>
     </div>
 
@@ -74,7 +74,8 @@
     </div>
 
     <p class="form-error" id="loginErr" role="alert" hidden></p>
-    <button class="btn btn-primary btn-lg" type="submit">دخول</button>
+    <button class="btn btn-primary btn-lg" type="submit" id="loginBtn">دخول</button>
+    <button class="linkish" type="button" id="forgotBtn">نسيت كلمة المرور؟</button>
     <button class="theme-toggle ghost-toggle" type="button" data-theme-toggle aria-label="تبديل الوضع الليلي">
       <svg class="s-sun"><use href="#i-sun"/></svg><svg class="s-moon"><use href="#i-moon"/></svg>
     </button>
@@ -107,6 +108,7 @@
     <button class="nav-item" data-view="tx"><svg><use href="#i-list"/></svg><span>الحركات</span></button>
     <button class="nav-item" data-view="ready"><svg><use href="#i-check"/></svg><span>جاهزة</span><b class="nav-badge" id="readyBadge" hidden>0</b></button>
     <button class="nav-item" data-view="settings"><svg><use href="#i-cog"/></svg><span>الإعدادات</span></button>
+    <a class="nav-item nav-link" href="orders/"><svg><use href="#i-box"/></svg><span>الطلبيات</span></a>
   </nav>
 
   <main class="main" id="main"></main>

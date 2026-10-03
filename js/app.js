@@ -1,7 +1,7 @@
 /* ============================================================
    واجهة الموقع
    ============================================================ */
-import { USERS } from './config.js';
+import * as FB from './fb.js';
 import * as S from './store.js';
 
 /* ─────────── أدوات مساعدة ─────────── */
@@ -90,57 +90,107 @@ function confirmSheet({ title, body, danger = true, okText = 'تأكيد' }){
 }
 
 /* ─────────── الجلسة وتسجيل الدخول ─────────── */
-const SESSION_KEY = 'ledger_session';
-let session = null;
-try{ session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }catch(e){}
+/* تسجيل دخول حقيقي عبر Firebase. المستخدم لازم يكون «عضو»
+   (إله مستند في members/{uid}) عشان يوصل للدفتر المشترك. */
+let session = null;   // { uid, email, name }
 
 $('#peek').onclick = () => {
   const i = $('#lp');
   i.type = i.type === 'password' ? 'text' : 'password';
 };
 
-$('#loginForm').addEventListener('submit', e => {
-  e.preventDefault();
-  const u = $('#lu').value.trim().toLowerCase();
-  const p = $('#lp').value;
-  const hit = USERS.find(x => x.user.toLowerCase() === u && x.pass === p);
+function loginError(msg){
   const err = $('#loginErr');
-  if(!hit){
-    err.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
-    err.hidden = false;
-    $('#loginForm').animate(
-      [{transform:'translateX(0)'},{transform:'translateX(-8px)'},{transform:'translateX(8px)'},{transform:'translateX(0)'}],
-      { duration: 260 }
-    );
-    return;
-  }
-  err.hidden = true;
-  session = { user: hit.user, name: hit.name };
-  try{ localStorage.setItem(SESSION_KEY, JSON.stringify(session)); }catch(e){}
-  startApp();
-});
+  err.textContent = msg;
+  err.hidden = false;
+  $('#loginForm').animate(
+    [{transform:'translateX(0)'},{transform:'translateX(-8px)'},{transform:'translateX(8px)'},{transform:'translateX(0)'}],
+    { duration: 260 }
+  );
+}
 
-$('#logoutBtn').onclick = async () => {
-  if(!await confirmSheet({ title: 'تسجيل الخروج', body: 'بدك تطلع من الحساب؟', okText: 'خروج' })) return;
-  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
-  session = null;
+function showLogin(){
   $('#app').hidden = true;
   $('#login').hidden = false;
   $('#lp').value = '';
+}
+
+/** بعد الدخول: إذا جاي من صفحة ثانية (مثلاً ?next=orders) رجّعه عليها */
+function nextPage(){
+  const n = new URLSearchParams(location.search).get('next');
+  return n === 'orders' ? 'orders/' : null;
+}
+
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('#loginErr').hidden = true;
+  const btn = $('#loginBtn');
+  btn.disabled = true;
+  try{
+    await FB.login($('#lu').value, $('#lp').value);
+    // الباقي بيصير في FB.onUser تحت
+  }catch(err){
+    loginError(FB.authError(err));
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+$('#forgotBtn').onclick = async () => {
+  const email = $('#lu').value.trim();
+  if(!email){ loginError('اكتب إيميلك فوق أول، وبعدين اضغط «نسيت كلمة المرور»'); return; }
+  try{
+    await FB.resetPassword(email);
+    toast('بعتنالك رابط لتغيير كلمة المرور على الإيميل', 'info');
+  }catch(err){ loginError(FB.authError(err)); }
 };
+
+$('#logoutBtn').onclick = async () => {
+  if(!await confirmSheet({ title: 'تسجيل الخروج', body: 'بدك تطلع من الحساب؟', okText: 'خروج' })) return;
+  await FB.logout();
+};
+
+FB.onUser(async user => {
+  if(!user){
+    session = null;
+    S.stopStore();
+    showLogin();
+    return;
+  }
+  const m = await FB.membership(user);
+  if(!m){
+    loginError('حسابك مش مفعّل على الموقع لسا — اطلب من صاحب الموقع يضيفك');
+    await FB.logout();
+    return;
+  }
+  session = { uid: user.uid, email: user.email, name: m.name };
+  const next = nextPage();
+  if(next){ location.replace(next); return; }
+  startApp();
+});
 
 /* ─────────── التشغيل ─────────── */
 let view = 'dash';
 let mkFilter = S.monthKey();
 
+let subscribed = false;
 async function startApp(){
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#uName').textContent = session.name;
   $('#uAvatar').textContent = initials(session.name);
-  await S.initStore();
+  try{
+    await S.initStore();
+  }catch(e){
+    console.error(e);
+    loginError(e && e.code === 'permission-denied'
+      ? 'ما عندك صلاحية على الدفتر — تأكد إنك مضاف كعضو'
+      : 'تعذّر تحميل البيانات: ' + (e && e.message || e));
+    await FB.logout();
+    return;
+  }
   updateSyncPill();
-  S.subscribe(render);
+  if(!subscribed){ S.subscribe(render); subscribed = true; }
   render();
 }
 
@@ -797,5 +847,4 @@ function exportCSV(){
 }
 
 /* ─────────── إقلاع ─────────── */
-if(session && USERS.some(u => u.user === session.user)) startApp();
-else { $('#login').hidden = false; $('#app').hidden = true; }
+// التشغيل الأول بيصير تلقائياً من FB.onUser فوق

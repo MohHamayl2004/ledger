@@ -1,10 +1,9 @@
 /* ============================================================
    طبقة البيانات — تشتغل محلياً أو مع Firebase (مزامنة لحظية)
    ============================================================ */
-import { FIREBASE_CONFIG, DEFAULTS } from './config.js';
+import { DEFAULTS } from './config.js';
 
 const LS_KEY = 'ledger_data_v1';
-const FB_VER = '10.12.5';
 
 const state = {
   people: [],
@@ -48,58 +47,53 @@ function saveLocal(){
 }
 
 /* ─────────── التشغيل ─────────── */
+/* الدفتر مشترك بين كل الأعضاء: people / tx / meta بأعلى قاعدة البيانات.
+   الدخول لازم يكون بحساب حقيقي (شوف js/fb.js). */
+let unsubs = [];
+let ready = false;
+
 export async function initStore(){
-  loadLocal();
+  if(ready) return mode;
+  await initCloud();
+  mode = 'cloud';
+  ready = true;
   emit();
-  if(FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId){
-    try{
-      await initCloud();
-      mode = 'cloud';
-      emit();
-    }catch(e){
-      console.error('فشل الاتصال بـ Firebase — رجعنا للوضع المحلي', e);
-      mode = 'local';
-      emit();
-    }
-  }
   return mode;
 }
 
+/** عند تسجيل الخروج: نوقف الاستماع ونفضّي الذاكرة */
+export function stopStore(){
+  unsubs.forEach(u => { try{ u(); }catch(_){} });
+  unsubs = [];
+  ready = false;
+  state.people = []; state.tx = []; state.settings = { ...DEFAULTS };
+}
+
 async function initCloud(){
-  const [appMod, fsMod, authMod] = await Promise.all([
-    import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app.js`),
-    import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore.js`),
-    import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-auth.js`)
-  ]);
-  const app  = appMod.initializeApp(FIREBASE_CONFIG);
-  const auth = authMod.getAuth(app);
-  await authMod.signInAnonymously(auth);
-  const db = fsMod.getFirestore(app);
+  const { db, fs } = await import('./fb.js');
+  cloud = { db, ...fs };
 
-  cloud = {
-    db,
-    doc: fsMod.doc, setDoc: fsMod.setDoc, deleteDoc: fsMod.deleteDoc,
-    collection: fsMod.collection, onSnapshot: fsMod.onSnapshot,
-    getDocs: fsMod.getDocs, updateDoc: fsMod.updateDoc
-  };
-
-  await new Promise((resolve) => {
+  await new Promise((resolve, reject) => {
     let got = 0;
     const tick = () => { if(++got >= 2) resolve(); };
-    cloud.onSnapshot(cloud.collection(db, 'people'), snap => {
+    const fail = err => {
+      console.error(err);
+      if(err && err.code === 'permission-denied') reject(err); else tick();
+    };
+    unsubs.push(cloud.onSnapshot(cloud.collection(db, 'people'), snap => {
       state.people = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       emit(); tick();
-    }, err => { console.error(err); tick(); });
+    }, fail));
 
-    cloud.onSnapshot(cloud.collection(db, 'tx'), snap => {
+    unsubs.push(cloud.onSnapshot(cloud.collection(db, 'tx'), snap => {
       state.tx = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       emit(); tick();
-    }, err => { console.error(err); tick(); });
+    }, fail));
 
-    cloud.onSnapshot(cloud.doc(db, 'meta', 'settings'), snap => {
+    unsubs.push(cloud.onSnapshot(cloud.doc(db, 'meta', 'settings'), snap => {
       state.settings = { ...DEFAULTS, ...(snap.exists() ? snap.data() : {}) };
       emit();
-    }, err => console.error(err));
+    }, err => console.error(err)));
 
     setTimeout(resolve, 6000); // ما نعلّق للأبد
   });

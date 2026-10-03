@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// ============================================================
+// قواعد الحماية — انسخها كاملة إلى:
+// Firebase Console → Firestore Database → Rules → Publish
+// ============================================================
+// • بس «الأعضاء» بيوصلوا: عضو = إله مستند في members/{uid}
+//   (بتضيفه إنت بإيدك من اللوحة — ما حدا بيقدر يضيف حاله).
+// • دفتر الحسابات (people / tx / meta) مشترك بين كل الأعضاء.
+// • الطلبيات والزباين والمصاريف (users/{uid}/…) خاصة بصاحبها بس.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isMember() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+
+    // كل عضو بيقدر يقرأ مستنده (اسمه) بس — والتعديل من اللوحة فقط
+    match /members/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // دفتر الحسابات المشترك
+    match /people/{id} { allow read, write: if isMember(); }
+    match /tx/{id}     { allow read, write: if isMember(); }
+    match /meta/{id}   { allow read, write: if isMember(); }
+
+    // بيانات الطلبيات الخاصة
+    match /users/{uid}/{document=**} {
+      allow read, write: if isMember() && request.auth.uid == uid;
+    }
+
+    // أي إشي ثاني ممنوع
+  }
+}

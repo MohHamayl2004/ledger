@@ -467,3 +467,10 @@ tbody tr:hover{background:var(--surface-2)}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
 }
+
+/* ── رابط صفحة الطلبيات + «نسيت كلمة المرور» ── */
+a.nav-item{text-decoration:none}
+.nav-link{color:var(--brand)}
+@media (min-width:900px){ .nav-link{margin-top:.6rem;border-top:1px solid var(--border);border-radius:0 0 12px 12px;padding-top:1rem} }
+.linkish{background:none;border:0;color:var(--text-3);font:inherit;font-size:.85rem;margin-top:.8rem;cursor:pointer;text-decoration:underline}
+.linkish:hover{color:var(--brand)}

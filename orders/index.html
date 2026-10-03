@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1419">
+<title>إدارة الطلبيات</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2310b981'/%3E%3Cpath d='M16 22l16-8 16 8v20l-16 8-16-8z M16 22l16 8 16-8 M32 30v20' stroke='%23fff' stroke-width='4' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+  <!-- ===================== الشريط الجانبي ===================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark" data-icon="truck"></div>
+      <div class="brand-text">
+        <b>إدارة الطلبيات</b>
+        <span>لوحة عمل التوصيل</span>
+      </div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <div class="nav-label">الرئيسية</div>
+      <button class="nav-item active" data-view="dashboard"><i data-icon="home"></i><span>لوحة التحكم</span></button>
+      <button class="nav-item" data-view="orders"><i data-icon="box"></i><span>الطلبيات</span><em class="nav-badge hidden" id="badgePending"></em></button>
+      <button class="nav-item" data-view="customers"><i data-icon="users"></i><span>الزبائن</span></button>
+
+      <div class="nav-label">المال</div>
+      <button class="nav-item" data-view="ledgers"><i data-icon="wallet"></i><span>الأرصدة</span><em class="nav-badge warn hidden" id="badgeLow"></em></button>
+      <button class="nav-item" data-view="expenses"><i data-icon="coins"></i><span>الرسوم والمصاريف</span></button>
+      <button class="nav-item" data-view="reports"><i data-icon="chart"></i><span>التقارير والأرباح</span></button>
+
+      <div class="nav-label">أدوات</div>
+      <button class="nav-item" data-view="united"><i data-icon="phone"></i><span>ربط يونايتد</span></button>
+      <button class="nav-item" data-view="settings"><i data-icon="gear"></i><span>الإعدادات</span></button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <a class="btn btn-block" href="../"><i data-icon="wallet"></i><span>دفتر الحسابات</span></a>
+      <button class="btn btn-block" id="themeBtn"><i data-icon="moon"></i><span>تبديل الوضع</span></button>
+      <div class="user-box">
+        <div class="user-meta"><b id="userName"></b><span id="userEmail" dir="ltr"></span></div>
+        <button class="btn btn-icon btn-ghost" id="logoutBtn" title="تسجيل الخروج" aria-label="تسجيل الخروج"><i data-icon="logout"></i></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== المحتوى ===================== -->
+  <div class="main">
+    <header class="topbar">
+      <button class="btn btn-icon btn-ghost menu-btn" id="menuBtn" aria-label="القائمة"><i data-icon="menu"></i></button>
+      <div>
+        <div class="page-title" id="pageTitle">لوحة التحكم</div>
+        <div class="page-sub" id="pageSub"></div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="search-box">
+        <span data-icon="search"></span>
+        <input type="search" id="globalSearch" placeholder="ابحث باسم أو رقم الزبون…">
+      </div>
+      <button class="btn btn-primary" id="quickAdd"><i data-icon="plus"></i>طلبية جديدة</button>
+    </header>
+
+    <main class="content">
+
+      <!-- ============ لوحة التحكم ============ -->
+      <section class="view active" id="view-dashboard">
+        <div id="dashAlerts" class="flex-col mb-5"></div>
+        <div class="stats" id="dashStats"></div>
+
+        <div class="grid-2 mt-6" style="align-items:start">
+          <div class="card">
+            <div class="card-head">
+              <h3>آخر الطلبيات</h3>
+              <div class="spacer"></div>
+              <button class="btn btn-sm btn-ghost" data-goto="orders">عرض الكل</button>
+            </div>
+            <div class="table-wrap" id="dashRecent"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <h3>طلبيات اليوم المتوقعة</h3>
+              <div class="spacer"></div>
+              <span class="badge gray" id="todayCount">0</span>
+            </div>
+            <div class="table-wrap" id="dashToday"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ الطلبيات ============ -->
+      <section class="view" id="view-orders">
+        <div class="toolbar">
+          <div class="chips" id="statusChips">
+            <button class="chip active" data-status="all">الكل</button>
+            <button class="chip" data-status="pending">قيد الانتظار</button>
+            <button class="chip" data-status="delivered">مستلمة</button>
+            <button class="chip" data-status="returned">راجعة</button>
+          </div>
+          <div class="spacer"></div>
+          <select id="ordersPlatform" style="width:auto" title="تصفية حسب البرنامج"></select>
+          <input type="month" id="ordersMonth" style="width:auto" title="تصفية حسب الشهر">
+          <button class="btn btn-sm" id="ordersMonthClear"><i data-icon="x"></i>إلغاء الشهر</button>
+          <button class="btn" id="exportOrdersCsv"><i data-icon="download"></i>تصدير CSV</button>
+          <button class="btn" id="bulkSend" disabled><i data-icon="send"></i>رفع المحدّد ليونايتد (<span id="bulkCount">0</span>)</button>
+          <button class="btn btn-primary" id="addOrderBtn"><i data-icon="plus"></i>إضافة طلبية</button>
+        </div>
+        <div class="stats mb-5" id="ordersStats"></div>
+        <div class="card"><div class="table-wrap" id="ordersTable"></div></div>
+      </section>
+
+      <!-- ============ الزبائن ============ -->
+      <section class="view" id="view-customers">
+        <div class="toolbar">
+          <input type="search" id="custSearch" placeholder="بحث في الزبائن…" style="width:280px">
+          <div class="spacer"></div>
+          <button class="btn" id="exportCustCsv"><i data-icon="download"></i>تصدير CSV</button>
+          <button class="btn btn-primary" id="addCustBtn"><i data-icon="plus"></i>إضافة زبون</button>
+        </div>
+        <div class="card"><div class="table-wrap" id="custTable"></div></div>
+      </section>
+
+      <!-- ============ الأرصدة ============ -->
+      <section class="view" id="view-ledgers">
+        <div class="toolbar">
+          <input type="search" id="ledgerSearch" placeholder="بحث…" style="width:260px">
+          <div class="spacer"></div>
+          <div class="flex fs-13 text-muted">
+            <span>تنبيه عند أقل من</span>
+            <input type="number" id="thresholdInput" style="width:86px" min="0" step="1">
+            <span>شيكل</span>
+          </div>
+          <button class="btn btn-primary" id="addLedgerBtn"><i data-icon="plus"></i>إضافة شخص</button>
+        </div>
+        <div class="stats mb-5" id="ledgerStats"></div>
+        <div id="ledgerAlerts" class="flex-col mb-5"></div>
+        <div class="card"><div class="table-wrap" id="ledgerTable"></div></div>
+      </section>
+
+      <!-- ============ الرسوم والمصاريف ============ -->
+      <section class="view" id="view-expenses">
+        <div class="toolbar">
+          <div class="chips" id="expTypeChips"></div>
+          <div class="spacer"></div>
+          <input type="month" id="expMonth" style="width:auto" title="تصفية حسب الشهر">
+          <button class="btn btn-sm" id="expMonthClear"><i data-icon="x"></i>كل الشهور</button>
+          <button class="btn" id="exportExpCsv"><i data-icon="download"></i>تصدير CSV</button>
+          <button class="btn btn-primary" id="addExpBtn"><i data-icon="plus"></i>إضافة رسوم</button>
+        </div>
+        <div class="stats mb-5" id="expStats"></div>
+        <div class="grid-2" style="align-items:start">
+          <div class="card">
+            <div class="card-head"><h3>كل الحركات</h3></div>
+            <div class="table-wrap" id="expTable"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>حسب النوع</h3></div>
+            <div class="table-wrap" id="expByType"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ التقارير ============ -->
+      <section class="view" id="view-reports">
+        <div class="card mb-5">
+          <div class="card-body">
+            <div class="flex wrap" style="align-items:flex-end">
+              <div class="field" style="width:180px">
+                <label for="repFrom">من شهر</label>
+                <input type="month" id="repFrom">
+              </div>
+              <div class="field" style="width:180px">
+                <label for="repTo">إلى شهر</label>
+                <input type="month" id="repTo">
+              </div>
+              <button class="btn btn-primary" id="repRun"><i data-icon="chart"></i>احسب</button>
+              <div class="spacer" style="flex:1"></div>
+              <div class="chips">
+                <button class="chip" data-range="this">هذا الشهر</button>
+                <button class="chip" data-range="last">الشهر الماضي</button>
+                <button class="chip" data-range="3">آخر 3 شهور</button>
+                <button class="chip" data-range="6">آخر 6 شهور</button>
+                <button class="chip" data-range="year">هذه السنة</button>
+                <button class="chip" data-range="all">الكل</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card mb-5">
+          <div class="card-body">
+            <div class="flex wrap" style="align-items:center">
+              <span class="fs-13 text-muted">البرنامج:</span>
+              <div class="chips" id="repPlatforms"></div>
+            </div>
+            <p class="fs-12 text-faint mt-5 hidden" id="repPlatformNote">الأرقام تحت لطلبيات هذا البرنامج بس. الرسوم والمصاريف مش محسوبة لأنها مش تابعة لبرنامج معيّن.</p>
+          </div>
+        </div>
+        <div class="stats mb-5" id="repStats"></div>
+        <div class="card mb-5">
+          <div class="card-head"><h3>الربح حسب البرنامج</h3><div class="spacer"></div><span class="fs-12 text-faint">اضغط على برنامج لتشوف تفاصيله</span></div>
+          <div class="table-wrap" id="repByPlatform"></div>
+        </div>
+        <div class="card mb-5">
+          <div class="card-head"><h3>الربح الصافي حسب الشهر</h3><div class="spacer"></div><span class="fs-12 text-faint">بالشيكل</span></div>
+          <div class="card-body"><div class="bars" id="repChart"></div></div>
+        </div>
+        <div class="grid-2" style="align-items:start">
+          <div class="card">
+            <div class="card-head"><h3>تفصيل الشهور</h3><div class="spacer"></div>
+              <button class="btn btn-sm" id="exportRepCsv"><i data-icon="download"></i>تصدير</button></div>
+            <div class="table-wrap" id="repTable"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>أفضل الزبائن</h3></div>
+            <div class="table-wrap" id="repCustomers"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ربط يونايتد ============ -->
+      <section class="view" id="view-united">
+
+        <!-- ---------- تبويب الويب ---------- -->
+        <div id="utab-web">
+          <div class="card mb-5">
+            <div class="card-head"><h3>حساب يونايتد</h3><div class="spacer"></div>
+              <button class="btn btn-sm" id="uRefresh"><i data-icon="refresh"></i>تحديث</button></div>
+            <div class="card-body flex-col">
+              <div id="uStatus"></div>
+              <div class="flex wrap">
+                <button class="btn btn-primary" id="uLogin"><i data-icon="key"></i>تسجيل الدخول</button>
+                <button class="btn" id="uOpenSite"><i data-icon="send"></i>فتح الموقع بالمتصفح</button>
+                <button class="btn" id="uDiagnose"><i data-icon="info"></i>تشخيص</button>
+                <button class="btn btn-danger" id="uLogout">تسجيل خروج</button>
+              </div>
+              <div class="field">
+                <label for="uBase">رابط الموقع</label>
+                <input type="text" id="uBase" dir="ltr" style="text-align:start" placeholder="https://unitedexpress.ps">
+              </div>
+              <div class="field">
+                <label for="uModel">اسم جدول الطلبيات عند يونايتد</label>
+                <input type="text" id="uModel" dir="ltr" style="text-align:start" placeholder="rb_delivery.order">
+                <span class="hint">بتلاقيه في رابط صفحة «طلبية جديدة» بعد <code>model=</code>. لا تغيّره إلا إذا تغيّر عندهم.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-5">
+            <div class="card-head"><h3>ربط الحقول</h3><div class="spacer"></div>
+              <span class="badge gray" id="uFieldCount">—</span>
+              <button class="btn btn-sm" id="uGuess">تخمين تلقائي</button>
+              <button class="btn btn-sm btn-primary" id="uDiscover"><i data-icon="refresh"></i>اكتشاف الحقول</button>
+            </div>
+            <div class="card-body">
+              <div class="alert info mb-5">
+                <span data-icon="info"></span>
+                <div>اضغط <b>اكتشاف الحقول</b> — البرنامج بيقرأ حقول شاشة الطلبية عند يونايتد وبيربطها تلقائياً بحقولك. راجع الربط وعدّل اللي بدو تعديل.</div>
+              </div>
+              <div id="uMapTable"></div>
+              <div id="uRequiredWarn" class="mt-5"></div>
+            </div>
+          </div>
+
+          <div class="card mb-5">
+            <div class="card-head"><h3>مناطق يونايتد (المدن والقرى)</h3><div class="spacer"></div>
+              <span class="badge gray" id="uAreaCount">—</span>
+              <button class="btn btn-sm btn-primary" id="uLoadAreas"><i data-icon="download"></i>تحميل القائمة</button></div>
+            <div class="card-body flex-col">
+              <div class="alert info">
+                <span data-icon="info"></span>
+                <div>يونايتد بيقبل مناطق مسجّلة عندهم بالضبط. حمّل القائمة مرة وحدة، وبعدها وقت تضيف طلبية بتختار المنطقة من قائمة جاهزة — فما بترفض الطلبية أبداً.</div>
+              </div>
+              <div class="field">
+                <label for="uAreaField">حقل المنطقة عند يونايتد</label>
+                <select id="uAreaField"></select>
+                <span class="hint">لازم يكون حقل قائمة (مثل Receiver Sub Area).</span>
+              </div>
+              <div id="uAreaPreview"></div>
+            </div>
+          </div>
+
+          <div class="card mb-5">
+            <div class="card-head"><h3>مزامنة حالة الطلبيات</h3><div class="spacer"></div>
+              <span class="badge gray" id="uSyncInfo">—</span>
+              <button class="btn btn-sm btn-primary" id="uSyncNow"><i data-icon="refresh"></i>مزامنة الآن</button></div>
+            <div class="card-body flex-col">
+              <div class="alert info">
+                <span data-icon="info"></span>
+                <div>البرنامج بيقرأ حالة كل طلبية أرسلتها ليونايتد وبيحدّثها لحاله — فما بتحتاج تحدّد «مستلمة» أو «راجعة» بإيدك.</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="uAutoSync"><span class="track"></span>
+                <span class="lbl">مزامنة تلقائية كل</span>
+              </label>
+              <div class="flex">
+                <input type="number" id="uSyncMinutes" min="5" max="240" step="5" style="width:100px">
+                <span class="fs-13 text-muted">دقيقة (وكمان عند فتح البرنامج)</span>
+              </div>
+              <div class="divider"></div>
+              <h4 class="fs-13">ربط حالات يونايتد بحالاتي</h4>
+              <p class="fs-12 text-faint">لكل حالة عند يونايتد، حدّد شو تعني عندك. «بدون تغيير» = الطلبية لسا بالطريق.</p>
+              <div id="uStatusTable"></div>
+            </div>
+          </div>
+
+          <div class="card mb-5">
+            <div class="card-head"><h3>قيم ثابتة</h3><div class="spacer"></div>
+              <button class="btn btn-sm btn-primary" id="uAddFixed"><i data-icon="plus"></i>إضافة قيمة</button></div>
+            <div class="card-body">
+              <p class="fs-13 text-muted mb-4">حقول بتنبعث بنفس القيمة كل مرة — مثل نوع الخدمة أو الفرع أو منطقة التاجر.</p>
+              <div id="uFixedList"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>تجربة</h3><div class="spacer"></div>
+              <button class="btn btn-sm" id="uPreview"><i data-icon="eye"></i>معاينة البيانات</button>
+              <button class="btn btn-sm btn-primary" id="uTest"><i data-icon="play"></i>إرسال طلبية تجريبية</button></div>
+            <div class="card-body"><div class="log" id="uLog"></div></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============ الإعدادات ============ -->
+      <section class="view" id="view-settings">
+        <div class="grid-2 mb-5" style="align-items:start">
+          <div class="card">
+            <div class="card-head"><h3>البرامج ونسب الربح</h3><div class="spacer"></div>
+              <button class="btn btn-sm btn-primary" id="addPlatform"><i data-icon="plus"></i>إضافة برنامج</button></div>
+            <div class="card-body">
+              <p class="fs-13 text-muted mb-4">لما تختار البرنامج بالطلبية، نسبة الربح بتتعبّى لحالها.</p>
+              <div id="platformList"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>أنواع الرسوم</h3><div class="spacer"></div>
+              <button class="btn btn-sm btn-primary" id="addExpType"><i data-icon="plus"></i>إضافة نوع</button></div>
+            <div class="card-body">
+              <p class="fs-13 text-muted mb-4">الأنواع اللي بتختار منها وقت تسجّل رسوم.</p>
+              <div id="expTypeList"></div>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="grid-2" style="align-items:start">
+          <div class="card">
+            <div class="card-head"><h3>الحسابات والأرباح</h3></div>
+            <div class="card-body flex-col">
+              <div class="field">
+                <label for="setPct">نسبة الربح الافتراضية (%)</label>
+                <input type="number" id="setPct" min="0" max="100" step="0.5">
+                <span class="hint">تتعبّى تلقائياً عند إضافة طلبية جديدة، وبتقدر تغيّرها لكل طلبية.</span>
+              </div>
+              <div class="field">
+                <label for="setReturn">عند إرجاع الطلبية</label>
+                <select id="setReturn">
+                  <option value="full_price">يُخصم سعر الطلبية كامل</option>
+                  <option value="full_price_and_delivery">يُخصم سعر الطلبية + أجرة التوصيل</option>
+                  <option value="delivery_only">تُخصم أجرة التوصيل فقط</option>
+                  <option value="none">لا يُخصم شيء</option>
+                </select>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="setDelivery"><span class="track"></span>
+                <span class="lbl">احتساب أجرة التوصيل ضمن الربح</span>
+              </label>
+              <div class="field">
+                <label for="setThreshold">حد التنبيه للرصيد المنخفض (شيكل)</label>
+                <input type="number" id="setThreshold" min="0" step="1">
+              </div>
+              <div class="field">
+                <label for="setPickupFee">تكلفة نقطة الاستلام (₪)</label>
+                <input type="number" id="setPickupFee" min="0" step="0.5">
+                <span class="hint">بتنخصم من الربح لكل طلبية نوعها «نقطة استلام».</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>البيانات والنسخ الاحتياطي</h3></div>
+            <div class="card-body flex-col">
+              <div class="alert info">
+                <span data-icon="info"></span>
+                <div>بياناتك محفوظة على حسابك وبتتزامن بين أجهزتك، ونسخة منها على هذا الجهاز عشان تشتغل بدون نت. في كمان نسخة احتياطية يومية تلقائية (آخر 30 يوم). نزّل نسخة على جهازك كل فترة للأمان.</div>
+              </div>
+              <div class="flex wrap">
+                <button class="btn" id="btnExport"><i data-icon="download"></i>تصدير نسخة احتياطية</button>
+                <button class="btn" id="btnImport"><i data-icon="upload"></i>استيراد نسخة</button>
+              </div>
+              <div class="divider"></div>
+              <div class="kv">
+                <dt>عدد الطلبيات</dt><dd id="infoOrders">0</dd>
+                <dt>عدد الزبائن</dt><dd id="infoCustomers">0</dd>
+                <dt>عدد الأشخاص بالأرصدة</dt><dd id="infoLedgers">0</dd>
+                <dt>عدد حركات الرسوم</dt><dd id="infoExpenses">0</dd>
+                <dt>مكان البيانات</dt><dd class="fs-12 text-faint" id="infoFolder" style="word-break:break-all">—</dd>
+              </div>
+              <div class="divider"></div>
+              <button class="btn btn-danger" id="btnWipe"><i data-icon="trash"></i>حذف كل البيانات</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ===================== النوافذ ===================== -->
+
+<!-- طلبية -->
+<div class="overlay" id="orderModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="orderModalTitle">إضافة طلبية</h3><div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" data-close><i data-icon="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="orderForm" autocomplete="off">
+        <div class="grid-2">
+          <div class="field rel">
+            <label for="oPhone">رقم الزبون <span class="req">*</span></label>
+            <input type="text" id="oPhone" inputmode="tel" placeholder="05xxxxxxxx">
+            <div class="suggest" id="phoneSuggest"></div>
+            <span class="hint">إذا الرقم محفوظ، بتتعبّى بياناته تلقائياً.</span>
+            <span class="err">مطلوب إدخال رقم الزبون</span>
+          </div>
+          <div class="field rel">
+            <label for="oName">اسم الزبون <span class="req">*</span></label>
+            <input type="text" id="oName" placeholder="الاسم الكامل">
+            <div class="suggest" id="nameSuggest"></div>
+            <span class="err">مطلوب إدخال اسم الزبون</span>
+          </div>
+          <div class="field rel">
+            <label for="oAddr1">العنوان الأول (المنطقة) <span class="req">*</span></label>
+            <input type="text" id="oAddr1" placeholder="المدينة / البلدة" autocomplete="off">
+            <div class="suggest" id="areaSuggest"></div>
+            <span class="hint" id="areaHint"></span>
+            <span class="err">مطلوب إدخال العنوان</span>
+          </div>
+          <div class="field">
+            <label for="oAddr2">العنوان التفصيلي</label>
+            <input type="text" id="oAddr2" placeholder="الحي، الشارع، علامة مميزة">
+          </div>
+          <div class="field span-2">
+            <label>نوع التسليم</label>
+            <div class="chips" id="oDeliveryType">
+              <button type="button" class="chip active" data-dtype="delivery">توصيل</button>
+              <button type="button" class="chip" data-dtype="pickup">نقطة استلام</button>
+            </div>
+            <span class="hint" id="dtypeHint"></span>
+          </div>
+          <div class="field">
+            <label for="oPlatform">البرنامج</label>
+            <select id="oPlatform"></select>
+            <span class="hint">اختيار البرنامج بيعبّي نسبة الربح تلقائياً.</span>
+          </div>
+          <div class="field">
+            <label for="oPieces">عدد القطع <span class="req">*</span></label>
+            <input type="number" id="oPieces" min="1" step="1" value="1">
+            <span class="err">أدخل رقماً صحيحاً</span>
+          </div>
+          <div class="field">
+            <label for="oPrice">سعر الطلبية (₪) <span class="req">*</span></label>
+            <input type="number" id="oPrice" min="0" step="0.5" placeholder="0">
+            <span class="err">أدخل سعراً صحيحاً</span>
+          </div>
+          <div class="field">
+            <label for="oDelivery">سعر التوصيل (₪)</label>
+            <input type="number" id="oDelivery" min="0" step="0.5" placeholder="0">
+          </div>
+          <div class="field">
+            <label for="oPct">نسبة الربح (%)</label>
+            <input type="number" id="oPct" min="0" max="100" step="0.5">
+            <span class="hint">تُحسب من سعر الطلبية بدون التوصيل.</span>
+          </div>
+          <div class="field">
+            <label for="oDate">تاريخ الطلبية <span class="req">*</span></label>
+            <input type="date" id="oDate">
+            <span class="err">مطلوب إدخال التاريخ</span>
+          </div>
+          <div class="field">
+            <label for="oExpDate">التاريخ المتوقع للوصول</label>
+            <input type="date" id="oExpDate">
+          </div>
+          <div class="field">
+            <label for="oStatus">الحالة</label>
+            <select id="oStatus">
+              <option value="pending">قيد الانتظار</option>
+              <option value="delivered">مستلمة</option>
+              <option value="returned">راجعة</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>الربح المتوقع</label>
+            <div class="stat" style="padding:9px 13px;height:42px;display:flex;align-items:center">
+              <span class="cell-strong pos num" id="oProfitPreview">0.00 ₪</span>
+            </div>
+          </div>
+          <div class="field span-2">
+            <label for="oNotes">ملاحظات</label>
+            <textarea id="oNotes" placeholder="أي تفاصيل إضافية…"></textarea>
+          </div>
+        </div>
+
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="orderSave"><i data-icon="check"></i>حفظ الطلبية</button>
+    </div>
+  </div>
+</div>
+
+<!-- عرض طلبية -->
+<div class="overlay" id="viewModal">
+  <div class="modal narrow" style="max-width:560px">
+    <div class="modal-head"><h3>تفاصيل الطلبية</h3><div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" data-close><i data-icon="x"></i></button></div>
+    <div class="modal-body" id="viewBody"></div>
+    <div class="modal-foot" id="viewFoot"></div>
+  </div>
+</div>
+
+<!-- زبون -->
+<div class="overlay" id="custModal">
+  <div class="modal narrow">
+    <div class="modal-head"><h3 id="custModalTitle">إضافة زبون</h3><div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" data-close><i data-icon="x"></i></button></div>
+    <div class="modal-body">
+      <form id="custForm" class="flex-col" autocomplete="off">
+        <div class="field">
+          <label for="cPhone">رقم الزبون <span class="req">*</span></label>
+          <input type="text" id="cPhone" inputmode="tel"><span class="err">مطلوب</span>
+        </div>
+        <div class="field">
+          <label for="cName">الاسم <span class="req">*</span></label>
+          <input type="text" id="cName"><span class="err">مطلوب</span>
+        </div>
+        <div class="field"><label for="cAddr1">العنوان الأول</label><input type="text" id="cAddr1"></div>
+        <div class="field"><label for="cAddr2">العنوان التفصيلي</label><input type="text" id="cAddr2"></div>
+        <div class="field"><label for="cNotes">ملاحظات</label><textarea id="cNotes"></textarea></div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button><div class="spacer"></div>
+      <button class="btn" id="custSendUnited"><i data-icon="phone"></i>إرسال ليونايتد</button>
+      <button class="btn btn-primary" id="custSave"><i data-icon="check"></i>حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- شخص رصيد -->
+<div class="overlay" id="ledgerModal">
+  <div class="modal narrow">
+    <div class="modal-head"><h3 id="ledgerModalTitle">إضافة شخص</h3><div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" data-close><i data-icon="x"></i></button></div>
+    <div class="modal-body">
+      <form id="ledgerForm" class="flex-col" autocomplete="off">
+        <div class="field"><label for="lName">الاسم <span class="req">*</span></label><input type="text" id="lName"><span class="err">مطلوب</span></div>
+        <div class="field"><label for="lPhone">رقم الهاتف</label><input type="text" id="lPhone" inputmode="tel"></div>
+        <div class="field"><label for="lOpen">الرصيد الابتدائي (₪)</label><input type="number" id="lOpen" step="0.5" value="0"></div>
+        <div class="field"><label for="lNote">ملاحظة</label><input type="text" id="lNote"></div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button><div class="spacer"></div>
+      <button class="btn btn-primary" id="ledgerSave"><i data-icon="check"></i>حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- حركة رصيد -->
+<div class="overlay" id="entryModal">
+  <div class="modal narrow">
+    <div class="modal-head"><h3 id="entryTitle">حركة رصيد</h3><div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" data-close><i data-icon="x"></i></button></div>
+    <div class="modal-body">
+      <div class="stat mb-5">
+        <div class="stat-label">الرصيد الحالي</div>
+        <div class="stat-value num" id="entryCurrent">0 ₪</div>
+      </div>
+      <div class="chips mb-4" id="entryDir">
+        <button class="chip active" data-dir="1"><i data-icon="plus"></i>إضافة رصيد</button>
+        <button class="chip" data-dir="-1"><i data-icon="minus"></i>خصم رصيد</button>
+      </div>
+      <div class="flex-col">
+        <div class="field"><label for="eAmount">المبلغ (₪) <span class="req">*</span></label>
+          <input type="number" id="eAmount" min="0" step="0.5"><span class="err">أدخل مبلغاً أكبر من صفر</span></div>
+        <div class="field"><label for="eNote">سبب / ملاحظة</label><input type="text" id="eNote" placeholder="مثلاً: دفعة نقدية"></div>
+        <div class="field"><label for="eDate">التاريخ</label><input type="date" id="eDate"></div>
+      </div>
+      <div class="divider"></div>
+      <h4 class="fs-13 mb-4">سجل الحركات</h4>
+      <div class="table-wrap" id="entryHistory"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إغلاق</button><div class="spacer"></div>
+      <button class="btn btn-primary" id="entrySave"><i data-icon="check"></i>تسجيل الحركة</button>
+    </div>
+  </div>
+</div>
+
+<!-- دخول يونايتد -->
+<div class="overlay" id="uLoginModal">
+  <div class="modal narrow">
+    <div class="modal-head"><h3>تسجيل الدخول إلى يونايتد</h3><div class="spacer"></div>
+      <button class="btn btn-icon btn-ghost" data-close aria-label="إغلاق"><i data-icon="x"></i></button></div>
+    <form class="modal-body flex-col" id="uLoginForm" autocomplete="off">
+      <div class="field"><label for="ulUser">اسم المستخدم / الإيميل عند يونايتد</label>
+        <input type="text" id="ulUser" dir="ltr" style="text-align:start" autocomplete="off"></div>
+      <div class="field"><label for="ulPass">كلمة السر</label>
+        <input type="password" id="ulPass" dir="ltr" style="text-align:start" autocomplete="new-password">
+        <span class="hint">كلمة السر ما بتنحفظ بأي مكان — بس جلسة الدخول على هذا الجهاز.</span></div>
+      <details>
+        <summary class="fs-13 text-muted" style="cursor:pointer">متقدّم: لصق الجلسة يدوياً</summary>
+        <div class="field mt-5"><label for="ulSession">قيمة كوكي session_id</label>
+          <input type="text" id="ulSession" dir="ltr" style="text-align:start" placeholder="session_id=…">
+          <span class="hint">إذا الدخول العادي ما زبط (مثلاً تحقق بخطوتين): سجّل دخول على موقع يونايتد بالمتصفح، وانسخ قيمة الكوكي session_id من أدوات المطوّر.</span></div>
+      </details>
+      <div class="alert danger hidden" id="ulErr"></div>
+      <button type="submit" hidden></button>
+    </form>
+    <div class="modal-foot"><div class="spacer"></div>
+      <button class="btn" data-close>إلغاء</button>
+      <button class="btn btn-primary" id="ulGo"><i data-icon="key"></i>دخول</button></div>
+  </div>
+</div>
+
+<!-- تأكيد -->
+<div class="overlay" id="confirmModal">
+  <div class="modal narrow">
+    <div class="modal-head"><h3 id="confirmTitle">تأكيد</h3></div>
+    <div class="modal-body"><p id="confirmText" style="font-size:15px;line-height:1.7"></p></div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button><div class="spacer"></div>
+      <button class="btn btn-danger" id="confirmOk">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<!-- رسوم / مصروف -->
+<div class="overlay" id="expModal">
+  <div class="modal narrow">
+    <div class="modal-head"><h3 id="expModalTitle">إضافة رسوم</h3><div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" data-close><i data-icon="x"></i></button></div>
+    <div class="modal-body">
+      <form id="expForm" class="flex-col" autocomplete="off">
+        <div class="field">
+          <label for="xType">النوع <span class="req">*</span></label>
+          <select id="xType"></select>
+        </div>
+        <div class="field">
+          <label for="xAmount">المبلغ (₪) <span class="req">*</span></label>
+          <input type="number" id="xAmount" min="0" step="0.5">
+          <span class="err">أدخل مبلغاً أكبر من صفر</span>
+        </div>
+        <div class="field">
+          <label for="xDate">التاريخ <span class="req">*</span></label>
+          <input type="date" id="xDate">
+          <span class="err">مطلوب</span>
+        </div>
+        <div class="field">
+          <label for="xNote">ملاحظة</label>
+          <input type="text" id="xNote" placeholder="تفاصيل إضافية…">
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button><div class="spacer"></div>
+      <button class="btn btn-primary" id="expSave"><i data-icon="check"></i>حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- اختيار حقل بالبحث -->
+<div class="overlay" id="pickModal">
+  <div class="modal narrow">
+    <div class="modal-head"><h3 id="pickTitle">اختر الحقل</h3><div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" data-close><i data-icon="x"></i></button></div>
+    <div class="modal-body">
+      <input type="search" id="pickSearch" placeholder="اكتب اسم الحقل بالعربي أو الإنجليزي…" class="mb-4">
+      <div class="node-list" id="pickList"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button><div class="spacer"></div>
+      <button class="btn btn-danger" id="pickClear">إزالة الربط</button>
+    </div>
+  </div>
+</div>
+
+<!-- قيمة ثابتة -->
+<div class="overlay" id="fixedModal">
+  <div class="modal narrow">
+    <div class="modal-head"><h3>قيمة ثابتة</h3><div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" data-close><i data-icon="x"></i></button></div>
+    <div class="modal-body flex-col">
+      <div class="field">
+        <label for="fxField">الحقل عند يونايتد</label>
+        <select id="fxField"></select>
+      </div>
+      <div class="field" id="fxValueWrap">
+        <label for="fxValue">القيمة</label>
+        <input type="text" id="fxValue">
+      </div>
+      <div class="field hidden" id="fxSearchWrap">
+        <label for="fxSearch">ابحث واختر القيمة</label>
+        <input type="search" id="fxSearch" placeholder="اكتب حرفين على الأقل…">
+        <div class="node-list mt-4" id="fxResults"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button><div class="spacer"></div>
+      <button class="btn btn-primary" id="fxSave"><i data-icon="check"></i>إضافة</button>
+    </div>
+  </div>
+</div>
+
+<!-- تشغيل الأتمتة -->
+<div class="overlay" id="runModal">
+  <div class="modal narrow">
+    <div class="modal-head"><h3>إرسال الزبون إلى يونايتد</h3><div class="spacer"></div>
+      <button class="btn btn-ghost btn-icon" data-close><i data-icon="x"></i></button></div>
+    <div class="modal-body">
+      <div id="runStatus" class="mb-4"></div>
+      <div class="log" id="runLog"></div>
+    </div>
+    <div class="modal-foot"><div class="spacer"></div><button class="btn" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<div class="nav-scrim" id="navScrim"></div>
+
+<script src="calc.js"></script>
+<script src="icons.js"></script>
+<script type="module" src="api.js"></script>
+<script defer src="app.js"></script>
+</body>
+</html>
