@@ -432,6 +432,16 @@ function guessAreaField(fields) {
    window.api.united — نفس واجهة نسخة إلكترون (main.js) بس بالمتصفح
    ================================================================ */
 
+/** القيم المحسوبة: total = سعر الطلبية + سعر التوصيل (المبلغ اللي بيتحصّل من الزبون) */
+function withComputed(vars) {
+  const v = Object.assign({}, vars);
+  if (v.total === undefined || v.total === '') {
+    const n = (x) => { const f = parseFloat(x); return Number.isFinite(f) ? f : 0; };
+    if (v.price !== '' && v.price !== undefined) v.total = Math.round((n(v.price) + n(v.deliveryPrice)) * 100) / 100;
+  }
+  return v;
+}
+
 export function createUnitedApi({ getDB, save }) {
   const cfg = () => getDB().settings.united;
   const united = new United(cfg);
@@ -500,7 +510,7 @@ export function createUnitedApi({ getDB, save }) {
 
     preview: wrap(({ vars }) => {
       const u = cfg();
-      return united.buildValues(u.mapping, u.fixed, vars || {}, u.fieldsCache || []);
+      return united.buildValues(u.mapping, u.fixed, withComputed(vars || {}), u.fieldsCache || []);
     }),
 
     send: wrap(async ({ vars }) => {
@@ -508,7 +518,7 @@ export function createUnitedApi({ getDB, save }) {
       if (!Object.keys(u.mapping || {}).length) {
         throw new Error('ما في ربط للحقول بعد. افتح «ربط يونايتد» واضغط «اكتشاف الحقول».');
       }
-      const vals = await united.buildValues(u.mapping, u.fixed, vars || {}, u.fieldsCache || []);
+      const vals = await united.buildValues(u.mapping, u.fixed, withComputed(vars || {}), u.fieldsCache || []);
       return united.createOrder(vals);
     }),
 

@@ -90,6 +90,11 @@ function migrate(d) {
   if (!Array.isArray(u.fieldsCache)) u.fieldsCache = [];
   if (!Array.isArray(u.areas)) u.areas = [];
   if (!u.statusMap || typeof u.statusMap !== 'object') u.statusMap = {};
+  // مرة وحدة: الحقل اللي كان بياخذ «سعر الطلبية» صار ياخذ «السعر شامل التوصيل»
+  if (!u.totalMigrated) {
+    for (const [field, src] of Object.entries(u.mapping)) if (src === 'price') u.mapping[field] = 'total';
+    u.totalMigrated = true;
+  }
   delete out.settings.adb;
   delete out.settings.recipe;
   delete out.settings.tracking;
@@ -117,9 +122,11 @@ async function loadAll() {
   }
   const st = await fs.getDoc(userDoc('meta', 'settings'));
   if (st.exists()) data.settings = fromDoc(st.data());
+  // الإعدادات زي ما هي على السيرفر — إذا الترحيل غيّر إشي، الحفظ الجاي بيثبّته
+  const rawSettings = st.exists() ? stable(data.settings) : '';
   const out = migrate(data);
   for (const c of COLLECTIONS) saved[c] = new Map(out[c].map((x) => [x.id, stable(x)]));
-  savedSettings = stable(out.settings);
+  savedSettings = rawSettings || stable(out.settings);
   return out;
 }
 
@@ -315,6 +322,7 @@ window.apiReady = (async () => {
   if (!MEMBER) { await logout(); location.replace('../?next=orders'); return new Promise(() => {}); }
   DB = await loadAll();
   listen();
+  saveDiff(DB).catch((e) => console.warn('حفظ الترحيل', e)); // بيثبّت أي ترحيل للإعدادات
   setTimeout(autoBackup, 5000);
   // نسخة أسبوعية بتنزل على الجهاز (نفس اللي بالدفتر — مرة بالأسبوع لكل حساب)
   setTimeout(async () => {

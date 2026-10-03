@@ -1223,6 +1223,7 @@ const U_SOURCES = [
   { key: 'pieces', label: 'عدد القطع' },
   { key: 'price', label: 'سعر الطلبية' },
   { key: 'deliveryPrice', label: 'سعر التوصيل' },
+  { key: 'total', label: 'السعر شامل التوصيل' },
   { key: 'notes', label: 'ملاحظات' }
 ];
 
