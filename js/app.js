@@ -2,6 +2,7 @@
    واجهة الموقع
    ============================================================ */
 import * as FB from './fb.js';
+import { weeklyBackupIfDue } from './backup.js';
 import * as S from './store.js';
 
 /* ─────────── أدوات مساعدة ─────────── */
@@ -192,6 +193,11 @@ async function startApp(){
   updateSyncPill();
   if(!subscribed){ S.subscribe(render); subscribed = true; }
   render();
+  // نسخة احتياطية أسبوعية بتنزل لحالها على الجهاز
+  setTimeout(async () => {
+    const done = await weeklyBackupIfDue(FB.auth.currentUser);
+    if(done) toast('نزلت نسخة احتياطية أسبوعية على جهازك (مجلد التنزيلات)', 'info');
+  }, 4000);
 }
 
 function updateSyncPill(){

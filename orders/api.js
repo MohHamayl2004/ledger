@@ -316,6 +316,12 @@ window.apiReady = (async () => {
   DB = await loadAll();
   listen();
   setTimeout(autoBackup, 5000);
+  // نسخة أسبوعية بتنزل على الجهاز (نفس اللي بالدفتر — مرة بالأسبوع لكل حساب)
+  setTimeout(async () => {
+    const { weeklyBackupIfDue } = await import('../js/backup.js');
+    const done = await weeklyBackupIfDue(USER);
+    if (done && window.toast) window.toast('نزلت نسخة احتياطية أسبوعية على جهازك (مجلد التنزيلات)', 'info', 6000);
+  }, 6000);
   return true;
 })();
 window.dispatchEvent(new Event('api-ready'));
