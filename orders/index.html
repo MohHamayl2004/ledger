@@ -490,6 +490,18 @@
             <span class="hint">تُحسب من سعر الطلبية بدون التوصيل.</span>
           </div>
           <div class="field">
+            <label for="oDiscType">الخصم</label>
+            <div class="flex" style="gap:var(--sp-2)">
+              <select id="oDiscType" style="flex:1">
+                <option value="">بدون خصم</option>
+                <option value="free_delivery">توصيل مجاني</option>
+                <option value="amount">خصم مبلغ</option>
+              </select>
+              <input type="number" id="oDiscount" min="0" step="0.5" placeholder="₪" style="width:110px" class="hidden">
+            </div>
+            <span class="hint" id="oDiscHint">بينخصم من ربحك لما تنسلّم الطلبية.</span>
+          </div>
+          <div class="field">
             <label for="oDate">تاريخ الطلبية <span class="req">*</span></label>
             <input type="date" id="oDate">
             <span class="err">مطلوب إدخال التاريخ</span>

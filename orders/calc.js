@@ -26,6 +26,25 @@
     return round2(fee);
   }
 
+  /**
+   * الخصم على الطلبية (بيقلّل الربح لما تنسلّم):
+   *   discountType = 'free_delivery' → التوصيل علينا (قيمته = سعر التوصيل)
+   *   discountType = 'amount'        → مبلغ ثابت (order.discount)
+   * نقطة الاستلام: التوصيل المجاني ما بيغيّر إشي (تكلفتها أصلاً علينا).
+   */
+  function discountOf(order) {
+    if (!order) return 0;
+    if (order.discountType === 'free_delivery') return order.deliveryType === 'pickup' ? 0 : round2(num(order.deliveryPrice));
+    if (order.discountType === 'amount') return round2(Math.max(0, num(order.discount)));
+    return 0;
+  }
+
+  /** المبلغ اللي بيدفعه الزبون (سعر الطلبية + التوصيل − الخصم) */
+  function customerPays(order) {
+    const delivery = order && order.deliveryType === 'pickup' ? 0 : num(order && order.deliveryPrice);
+    return round2(Math.max(0, num(order && order.price) + delivery - discountOf(order)));
+  }
+
   function orderProfit(order, settings) {
     const s = settings || {};
     const price = num(order.price);
@@ -35,7 +54,7 @@
     const deliveryPart = s.deliveryCountsInProfit ? delivery : 0;
     const pickup = pickupCost(order, s);
 
-    if (order.status === 'delivered') return round2(base + deliveryPart - pickup);
+    if (order.status === 'delivered') return round2(base + deliveryPart - pickup - discountOf(order));
 
     if (order.status === 'returned') {
       switch (s.returnPolicy || 'full_price') {
@@ -79,6 +98,8 @@
       pieces: 0,
       pickup: 0,         // عدد طلبيات نقطة الاستلام
       pickupCost: 0,     // مجموع تكلفة نقاط الاستلام
+      discounts: 0,      // مجموع الخصومات على المسلّمة
+      discounted: 0,     // عدد الطلبيات المسلّمة اللي عليها خصم
       sales: 0,          // مجموع أسعار الطلبيات المسلّمة
       deliveryFees: 0,   // مجموع أجور التوصيل للمسلّمة
       grossProfit: 0,    // ربح الطلبيات المسلّمة
@@ -105,9 +126,13 @@
         out.pending++;
         out.expectedPending += expectedProfit(o, settings);
       }
+      if (o.status === 'delivered') {
+        const d = discountOf(o);
+        if (d > 0) { out.discounts += d; out.discounted++; }
+      }
       out.netProfit += p;
     }
-    for (const k of ['sales', 'deliveryFees', 'grossProfit', 'losses', 'netProfit', 'expectedPending', 'pickupCost']) {
+    for (const k of ['sales', 'deliveryFees', 'grossProfit', 'losses', 'netProfit', 'expectedPending', 'pickupCost', 'discounts']) {
       out[k] = round2(out[k]);
     }
     return out;
@@ -289,7 +314,7 @@
   }
 
   return {
-    num, round2, orderProfit, expectedProfit, pickupCost, monthKey, inRange,
+    num, round2, orderProfit, expectedProfit, pickupCost, discountOf, customerPays, monthKey, inRange,
     summarize, byMonth, ledgerBalance, normalizePhone,
     expensesInRange, summarizeExpenses, expensesByMonth, netAfterExpenses,
     waitDaysFor, readyAt, daysLeft, parcelState, shipmentStats, readyParcels, dueForCheck

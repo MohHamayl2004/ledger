@@ -50,6 +50,10 @@ const dtypeBadge = (t) => {
   return `<span class="badge ${d.cls}">${ico(d.icon)}${d.label}</span>`;
 };
 const isPickup = (o) => o && o.deliveryType === 'pickup';
+/** وصف الخصم: «توصيل مجاني» أو «خصم 50 ₪» أو '' */
+const discountLabel = (o) => (!o || !o.discountType ? ''
+  : o.discountType === 'free_delivery' ? 'توصيل مجاني'
+  : C.num(o.discount) > 0 ? `خصم ${money(o.discount)} ₪` : '');
 
 const STATUS = {
   pending: { label: 'قيد الانتظار', cls: 'amber', icon: 'clock' },
@@ -331,7 +335,8 @@ function renderOrders() {
           <div class="cell-sub">${pickup ? 'نقطة استلام' : 'توصيل'}</div></td>
         <td class="num">${C.num(o.pieces)}</td>
         <td><div class="cell-strong">${shekel(o.price)}</div>
-          <div class="cell-sub">${pickup ? 'استلام ' : 'توصيل '}${shekel(o.deliveryPrice)}</div></td>
+          <div class="cell-sub">${pickup ? 'استلام ' : 'توصيل '}${shekel(o.deliveryPrice)}</div>
+          ${discountLabel(o) ? `<div class="cell-sub" style="color:var(--warn)">${discountLabel(o)}</div>` : ''}</td>
         <td><div class="cell-strong ${p < 0 ? 'neg' : p > 0 ? 'pos' : 'text-faint'}">${shekel(expected ? C.expectedProfit(o, s) : p)}</div>
           <div class="cell-sub num">${C.num(o.profitPercent)}%${expected ? ' · متوقع' : ''}</div></td>
         <td>${statusBadge(o.status)}
@@ -433,6 +438,9 @@ function openOrderModal(id) {
   $('#oPrice').value = o ? o.price : '';
   $('#oDelivery').value = o ? o.deliveryPrice : '';
   $('#oPct').value = o ? o.profitPercent : C.num(DB.settings.defaultProfitPercent);
+  $('#oDiscType').value = o ? (o.discountType || '') : '';
+  $('#oDiscount').value = o && o.discountType === 'amount' ? C.num(o.discount) : '';
+  syncDiscountField();
   $('#oDate').value = o ? o.date : todayStr();
   $('#oExpDate').value = o ? o.expectedDate || '' : '';
   $('#oStatus').value = o ? o.status : 'pending';
@@ -474,14 +482,27 @@ function setDeliveryType(type, applyDefaults) {
   updateProfitPreview();
 }
 
+function syncDiscountField() {
+  const amount = $('#oDiscType').value === 'amount';
+  $('#oDiscount').classList.toggle('hidden', !amount);
+}
+
 function updateProfitPreview() {
   const o = {
     price: $('#oPrice').value,
     deliveryPrice: $('#oDelivery').value,
     profitPercent: $('#oPct').value,
     status: $('#oStatus').value,
-    deliveryType: currentDeliveryType
+    deliveryType: currentDeliveryType,
+    discountType: $('#oDiscType').value,
+    discount: $('#oDiscount').value
   };
+  const d = C.discountOf(o);
+  $('#oDiscHint').innerHTML = d > 0
+    ? `الزبون بيدفع <b class="num">${money(C.customerPays(o))} ₪</b> · ربحك بيقل <b class="num">${money(d)} ₪</b>`
+    : (o.discountType === 'free_delivery' && currentDeliveryType === 'pickup'
+      ? 'نقطة الاستلام تكلفتها أصلاً عليك — ما في فرق بالربح.'
+      : 'بينخصم من ربحك لما تنسلّم الطلبية.');
   const p = C.orderProfit(o, DB.settings);
   const shown = o.status === 'pending' ? C.expectedProfit(o, DB.settings) : p;
   const el = $('#oProfitPreview');
@@ -523,6 +544,8 @@ function saveOrder() {
     price,
     deliveryPrice: pickup ? C.num(DB.settings.pickupFee === undefined ? 5 : DB.settings.pickupFee) : C.num($('#oDelivery').value),
     profitPercent: C.num($('#oPct').value),
+    discountType: $('#oDiscType').value,
+    discount: $('#oDiscType').value === 'amount' ? C.num($('#oDiscount').value) : 0,
     date,
     expectedDate: $('#oExpDate').value,
     status: $('#oStatus').value,
@@ -582,6 +605,8 @@ function viewOrder(id) {
       <dt>عدد القطع</dt><dd class="num">${C.num(o.pieces)}</dd>
       <dt>سعر الطلبية</dt><dd>${shekel(o.price)}</dd>
       <dt>${isPickup(o) ? 'تكلفة نقطة الاستلام' : 'سعر التوصيل'}</dt><dd>${shekel(o.deliveryPrice)}</dd>
+      <dt>الخصم</dt><dd>${discountLabel(o) || '—'}</dd>
+      ${discountLabel(o) ? `<dt>الزبون بيدفع</dt><dd>${shekel(C.customerPays(o))}</dd>` : ''}
       <dt>نسبة الربح</dt><dd class="num">${C.num(o.profitPercent)}%</dd>
       <dt>تاريخ الطلبية</dt><dd class="num">${dateLabel(o.date)}</dd>
       <dt>التاريخ المتوقع</dt><dd class="num">${o.expectedDate ? dateLabel(o.expectedDate) : '—'}</dd>
@@ -1093,7 +1118,7 @@ function runReport() {
 
   $('#repStats').innerHTML = [
     statCard('coins', 'green', repPlatform ? `ربح ${platName(repPlatform)}` : 'الربح النهائي', shekel(net), `${repPlatform ? 'بدون الرسوم' : 'بعد خصم الرسوم'} · ${from ? monthLabel(from) : 'البداية'} ← ${to ? monthLabel(to) : 'اليوم'}`, net < 0 ? 'neg' : 'pos'),
-    statCard('check', 'blue', 'ربح الطلبيات', shekel(sum.netProfit), `${sum.delivered} مستلمة · ${sum.returned} راجعة`, sum.netProfit < 0 ? 'neg' : 'pos'),
+    statCard('check', 'blue', 'ربح الطلبيات', shekel(sum.netProfit), `${sum.delivered} مستلمة · ${sum.returned} راجعة${sum.discounts > 0 ? ` · خصومات ${money(sum.discounts)}` : ''}`, sum.netProfit < 0 ? 'neg' : 'pos'),
     statCard('coins', 'rose', 'الرسوم والمصاريف', shekel(expSum.total), expSum.byType.slice(0, 3).map((t) => `${t.type} ${money(t.total)}`).join(' · ') || 'ما في رسوم', expSum.total > 0 ? 'neg' : ''),
     statCard('box', 'purple', 'قيمة المبيعات', shekel(sum.sales), `${sum.pieces} قطعة · ${sum.pickup} نقطة استلام`)
   ].join('');
@@ -1623,6 +1648,8 @@ async function sendViaWeb(src, silent, linkOrderId) {
     address1: src.address1 || '', address1Id: src.address1Id || src.areaId || null,
     address2: src.address2 || '',
     pieces: src.pieces || '', price: src.price || '', deliveryPrice: src.deliveryPrice || '',
+    // المبلغ اللي بيتحصّل من الزبون: سعر الطلبية + التوصيل − الخصم
+    total: src.price !== undefined && src.price !== '' ? C.customerPays(src) : '',
     notes: src.notes || ''
   };
   if (!silent) {
@@ -1782,7 +1809,8 @@ function bind() {
 
   // نموذج الطلبية
   $('#orderSave').addEventListener('click', saveOrder);
-  ['#oPrice', '#oDelivery', '#oPct', '#oStatus'].forEach((s) => {
+  $('#oDiscType').addEventListener('change', () => { syncDiscountField(); updateProfitPreview(); if ($('#oDiscType').value === 'amount') $('#oDiscount').focus(); });
+  ['#oPrice', '#oDelivery', '#oPct', '#oStatus', '#oDiscount'].forEach((s) => {
     $(s).addEventListener('input', updateProfitPreview);
     $(s).addEventListener('change', updateProfitPreview);
   });
@@ -1992,12 +2020,12 @@ function bind() {
   $('#exportOrdersCsv').addEventListener('click', () => {
     const list = filteredOrders();
     const rows = [['التاريخ', 'التاريخ المتوقع', 'اسم الزبون', 'رقم الزبون', 'العنوان الأول', 'العنوان التفصيلي',
-      'البرنامج', 'نوع التسليم', 'عدد القطع', 'سعر الطلبية', 'التوصيل/الاستلام', 'نسبة الربح %', 'الحالة', 'الربح',
+      'البرنامج', 'نوع التسليم', 'عدد القطع', 'سعر الطلبية', 'التوصيل/الاستلام', 'الخصم', 'قيمة الخصم', 'الزبون بيدفع', 'نسبة الربح %', 'الحالة', 'الربح',
       'رقم يونايتد', 'ملاحظات']];
     for (const o of list) {
       rows.push([o.date, o.expectedDate || '', o.customerName, o.phone, o.address1, o.address2,
         o.platform || '', (DELIVERY_TYPES[o.deliveryType] || DELIVERY_TYPES.delivery).label,
-        C.num(o.pieces), C.num(o.price), C.num(o.deliveryPrice), C.num(o.profitPercent),
+        C.num(o.pieces), C.num(o.price), C.num(o.deliveryPrice), discountLabel(o), C.discountOf(o), C.customerPays(o), C.num(o.profitPercent),
         (STATUS[o.status] || {}).label || o.status, C.orderProfit(o, DB.settings),
         o.unitedRef || o.unitedId || '', o.notes || '']);
     }
