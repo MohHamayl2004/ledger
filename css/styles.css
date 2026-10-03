@@ -140,7 +140,7 @@ a{color:var(--brand)}
 .input-wrap{position:relative;display:flex;align-items:center}
 .input-wrap .ico{position:absolute;inset-inline-start:.85rem;width:18px;height:18px;color:var(--text-3);pointer-events:none}
 .input-wrap:focus-within .ico{color:var(--brand)}
-input[type=text],input[type=password],input[type=number],input[type=date],select,textarea{
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],select,textarea{
   width:100%;min-height:48px;padding:.6rem .9rem;border-radius:var(--r-sm);
   background:var(--surface-solid);border:1.5px solid var(--border-strong);
   transition:border-color var(--dur),box-shadow var(--dur);
