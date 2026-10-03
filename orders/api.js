@@ -31,6 +31,16 @@ function stable(v) {
   return JSON.stringify(v === undefined ? null : v);
 }
 
+/* Firestore ما بيقبل مصفوفة جوّا مصفوفة (مثل خيارات حقول يونايتد [[قيمة، اسم]]).
+   أي سجل فيه هيك بينحفظ كنص JSON بحقل __json، وبيرجع لشكله الطبيعي وقت القراءة. */
+function hasNestedArray(v, inArray) {
+  if (Array.isArray(v)) return inArray || v.some((x) => hasNestedArray(x, true));
+  if (v && typeof v === 'object') return Object.values(v).some((x) => hasNestedArray(x, false));
+  return false;
+}
+const toDoc = (obj) => (hasNestedArray(obj, false) ? { __json: JSON.stringify(obj) } : obj);
+const fromDoc = (data) => (data && typeof data.__json === 'string' ? JSON.parse(data.__json) : data);
+
 const userCol = (col) => fs.collection(db, 'users', USER.uid, col);
 const userDoc = (...p) => fs.doc(db, 'users', USER.uid, ...p);
 
@@ -103,10 +113,10 @@ async function loadAll() {
   const data = defaults();
   for (const c of COLLECTIONS) {
     const snap = await fs.getDocs(userCol(c));
-    data[c] = snap.docs.map((d) => Object.assign({}, d.data(), { id: d.id })).sort(byDate);
+    data[c] = snap.docs.map((d) => Object.assign({}, fromDoc(d.data()), { id: d.id })).sort(byDate);
   }
   const st = await fs.getDoc(userDoc('meta', 'settings'));
-  if (st.exists()) data.settings = st.data();
+  if (st.exists()) data.settings = fromDoc(st.data());
   const out = migrate(data);
   for (const c of COLLECTIONS) saved[c] = new Map(out[c].map((x) => [x.id, stable(x)]));
   savedSettings = stable(out.settings);
@@ -128,7 +138,7 @@ function listen() {
           saved[c].delete(id);
           continue;
         }
-        const rec = Object.assign({}, ch.doc.data(), { id });
+        const rec = Object.assign({}, fromDoc(ch.doc.data()), { id });
         const json = stable(rec);
         if (saved[c].get(id) === json) continue; // نفس اللي عنا (غالباً تعديلنا نحنا)
         saved[c].set(id, json);
@@ -140,10 +150,10 @@ function listen() {
   }
   fs.onSnapshot(userDoc('meta', 'settings'), (snap) => {
     if (!DB || !snap.exists()) return;
-    const json = stable(snap.data());
+    const json = stable(fromDoc(snap.data()));
     if (json === savedSettings) return;
     savedSettings = json;
-    DB.settings = migrate({ settings: snap.data() }).settings;
+    DB.settings = migrate({ settings: fromDoc(snap.data()) }).settings;
     if (remoteCb) remoteCb();
   }, (e) => console.error('listen settings', e));
 }
@@ -163,14 +173,14 @@ async function saveDiff(data) {
       if (saved[c].get(rec.id) === json) continue;
       const clean = JSON.parse(JSON.stringify(rec)); // بيشيل undefined اللي Firestore ما بيقبله
       delete clean.id;
-      ops.push({ kind: 'set', ref: fs.doc(db, 'users', USER.uid, c, rec.id), data: clean, c, id: rec.id, json });
+      ops.push({ kind: 'set', ref: fs.doc(db, 'users', USER.uid, c, rec.id), data: toDoc(clean), c, id: rec.id, json });
     }
     for (const id of saved[c].keys()) {
       if (!seen.has(id)) ops.push({ kind: 'del', ref: fs.doc(db, 'users', USER.uid, c, id), c, id });
     }
   }
   const sJson = stable(data.settings || {});
-  if (sJson !== savedSettings) ops.push({ kind: 'settings', ref: userDoc('meta', 'settings'), data: JSON.parse(JSON.stringify(data.settings || {})), json: sJson });
+  if (sJson !== savedSettings) ops.push({ kind: 'settings', ref: userDoc('meta', 'settings'), data: toDoc(JSON.parse(JSON.stringify(data.settings || {}))), json: sJson });
 
   for (let i = 0; i < ops.length; i += 450) {
     const part = ops.slice(i, i + 450);
