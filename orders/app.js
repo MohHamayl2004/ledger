@@ -165,6 +165,7 @@ function renderView(v) {
 }
 
 function refreshAll() {
+  renderBrand();
   renderView(currentView);
   updateBadges();
   window.Icons.paint();
@@ -2287,7 +2288,78 @@ function bind() {
    ربط خاص بنسخة الويب (الجوال، الحساب، المزامنة، فلتر البرنامج)
    ================================================================ */
 
+/* ------- شعار المتجر (خاص بكل حساب) ------- */
+function renderBrand() {
+  const logo = DB.settings.logo || '';
+  const img = $('#brandLogo');
+  $('.brand').classList.toggle('has-logo', !!logo);
+  img.classList.toggle('hidden', !logo);
+  if (logo && img.getAttribute('src') !== logo) img.src = logo;
+  const pv = $('#logoPreview');
+  if (pv) pv.innerHTML = logo ? `<img src="${logo}" alt="">` : 'ما في شعار';
+  const rm = $('#logoRemove');
+  if (rm) rm.classList.toggle('hidden', !logo);
+}
+
+/** بيقصّ الهوامش الفاضية حوالين الشعار وبيصغّره (≤ 640×240) */
+async function processLogo(file) {
+  const bmp = await createImageBitmap(file);
+  const c = document.createElement('canvas');
+  c.width = bmp.width; c.height = bmp.height;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(bmp, 0, 0);
+  const { data, width: W, height: H } = x.getImageData(0, 0, c.width, c.height);
+  const bg = [data[0], data[1], data[2], data[3]]; // لون الزاوية = الخلفية
+  const isBg = (i) => data[i + 3] < 16 || (Math.abs(data[i] - bg[0]) < 24 && Math.abs(data[i + 1] - bg[1]) < 24 && Math.abs(data[i + 2] - bg[2]) < 24 && bg[3] > 16);
+  let top = H, left = W, right = -1, bottom = -1;
+  for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++) {
+    if (isBg((y * W + xx) * 4)) continue;
+    if (y < top) top = y; if (y > bottom) bottom = y; if (xx < left) left = xx; if (xx > right) right = xx;
+  }
+  if (right < 0) { top = 0; left = 0; right = W - 1; bottom = H - 1; }
+  const pad = Math.round(Math.max(right - left, bottom - top) * 0.04);
+  left = Math.max(0, left - pad); top = Math.max(0, top - pad);
+  right = Math.min(W - 1, right + pad); bottom = Math.min(H - 1, bottom + pad);
+  const cw = right - left + 1, ch = bottom - top + 1;
+  const scale = Math.min(1, 640 / cw, 240 / ch);
+  const out = document.createElement('canvas');
+  out.width = Math.round(cw * scale); out.height = Math.round(ch * scale);
+  const o = out.getContext('2d');
+  o.imageSmoothingQuality = 'high';
+  o.drawImage(c, left, top, cw, ch, 0, 0, out.width, out.height);
+  let url = out.toDataURL('image/webp', 0.9);
+  if (!url.startsWith('data:image/webp')) url = out.toDataURL('image/png');
+  return url;
+}
+
 function bindWeb() {
+  renderBrand();
+  $('#logoUpload').addEventListener('click', () => {
+    const i = document.createElement('input');
+    i.type = 'file';
+    i.accept = 'image/*';
+    i.onchange = async () => {
+      const f = i.files && i.files[0];
+      if (!f) return;
+      try {
+        const url = await processLogo(f);
+        if (url.length > 300000) { toast('الصورة كبيرة كثير حتى بعد التصغير — جرّب صورة أبسط', 'err', 6000); return; }
+        DB.settings.logo = url;
+        save(true);
+        renderBrand();
+        toast('تم تغيير الشعار');
+      } catch (e) { toast('ما قدرت أقرأ الصورة: ' + e.message, 'err', 6000); }
+    };
+    i.click();
+  });
+  $('#logoRemove').addEventListener('click', () => {
+    confirmBox('إزالة الشعار', 'بدك ترجع للشكل الافتراضي؟', 'إزالة', () => {
+      delete DB.settings.logo;
+      save(true);
+      renderBrand();
+    });
+  });
+
   // تحديث لحظي لما يتعدّل إشي من جهاز ثاني
   window.api.data.onRemote(() => {
     clearTimeout(bindWeb._t);

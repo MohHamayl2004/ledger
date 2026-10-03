@@ -20,6 +20,7 @@
         <b>إدارة الطلبيات</b>
         <span>لوحة عمل التوصيل</span>
       </div>
+      <img class="brand-logo hidden" id="brandLogo" alt="شعار المتجر">
     </div>
 
     <nav class="nav" id="nav">
@@ -327,6 +328,15 @@
 
       <!-- ============ الإعدادات ============ -->
       <section class="view" id="view-settings">
+        <div class="card mb-5">
+          <div class="card-head"><h3>شعار المتجر</h3><div class="spacer"></div>
+            <button class="btn btn-sm btn-primary" id="logoUpload"><i data-icon="upload"></i>رفع شعار</button>
+            <button class="btn btn-sm btn-danger hidden" id="logoRemove"><i data-icon="trash"></i>إزالة</button></div>
+          <div class="card-body flex wrap" style="align-items:center">
+            <div class="logo-preview" id="logoPreview"></div>
+            <p class="fs-13 text-muted" style="flex:1;min-width:200px">بيظهر فوق بالقائمة بدل «إدارة الطلبيات». خاص بحسابك — كل حساب إله شعاره. الصورة بتتقصّ وبتتصغّر لحالها.</p>
+          </div>
+        </div>
         <div class="grid-2 mb-5" style="align-items:start">
           <div class="card">
             <div class="card-head"><h3>البرامج ونسب الربح</h3><div class="spacer"></div>
