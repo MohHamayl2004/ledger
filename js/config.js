@@ -31,4 +31,4 @@ export const FIREBASE_CONFIG = {
 /* 4) رابط الوسيط تبع يونايتد (Cloudflare Worker)
       بعد ما ترفع ملف worker/united-proxy.js حط الرابط هون، مثلاً:
       "https://united-proxy.اسمك.workers.dev" */
-export const UNITED_PROXY = "";
+export const UNITED_PROXY = "https://united-proxy.palestiniantemu.workers.dev";
