@@ -100,11 +100,49 @@ async function rpc(base, sid, { path, payload }) {
   return out;
 }
 
+/** بيرجّع اسم قاعدة البيانات (Odoo) — يونايتد عنده وحدة بس */
+async function databaseName(base) {
+  const r = await fetch(base + '/web/database/list', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{"jsonrpc":"2.0","method":"call","params":{}}'
+  });
+  const j = await r.json().catch(() => null);
+  const list = j && Array.isArray(j.result) ? j.result : [];
+  return list.length === 1 ? list[0] : '';
+}
+
+/**
+ * تسجيل الدخول عبر JSON (‎/web/session/authenticate‎). خفيف وسريع —
+ * صفحة الدخول تبع يونايتد حجمها ~7MB (صور مدموجة) وبتعلّق الوسيط.
+ * إذا ما عرفنا اسم قاعدة البيانات منرجع لنموذج الدخول العادي.
+ */
+async function login(base, { login, password, db }) {
+  if (!login || !password) return { ok: false, error: 'اكتب اسم المستخدم وكلمة السر' };
+  const name = String(db || '') || await databaseName(base).catch(() => '');
+  if (!name) return formLogin(base, { login, password });
+
+  const res = await fetch(base + '/web/session/authenticate', {
+    method: 'POST',
+    redirect: 'manual',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { db: name, login, password } })
+  });
+  const j = await res.json().catch(() => null);
+  const sid = sessionFrom(res);
+  if (j && j.result && j.result.uid && sid) return { ok: true, session: sid };
+  const err = j && j.error ? ((j.error.data && j.error.data.message) || j.error.message || '') : '';
+  if (/access denied|AccessDenied|wrong login/i.test(err) || (j && j.result && !j.result.uid)) {
+    return { ok: false, error: 'يونايتد رفض الدخول — الاسم أو كلمة السر غلط' };
+  }
+  return { ok: false, error: 'ما زبط الدخول: ' + (err || 'HTTP ' + res.status).slice(0, 200) };
+}
+
 /**
  * تسجيل الدخول بنفس طريقة المتصفح: منفتح صفحة الدخول، منوخذ csrf_token
  * وكوكي الجلسة، ومنبعت النموذج. Odoo بيرجّع تحويل (303) لما ينجح.
  */
-async function login(base, { login, password }) {
+async function formLogin(base, { login, password }) {
   if (!login || !password) return { ok: false, error: 'اكتب اسم المستخدم وكلمة السر' };
 
   const page = await fetch(base + '/web/login', { redirect: 'manual' });
