@@ -4,6 +4,6 @@ compatibility_date = "2026-09-01"
 
 [vars]
 # المواقع اللي مسموح لها تستعمل الوسيط (افصل بفاصلة). ضيف الدومين تبعك لما تشتريه.
-ALLOWED_ORIGINS = "https://mohhamayl2004.github.io,http://localhost:8080,http://127.0.0.1:8080"
+ALLOWED_ORIGINS = "https://razanstore.site,https://www.razanstore.site,https://mohhamayl2004.github.io,http://localhost:8080,http://127.0.0.1:8080"
 # مواقع يونايتد المسموح التوصيل لها
 UNITED_BASES = "https://unitedexpress.ps"
