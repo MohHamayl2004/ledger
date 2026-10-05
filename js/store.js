@@ -143,6 +143,33 @@ export async function removePerson(id){
   }
 }
 
+/* ─────────── أيام الدوام ─────────── */
+/* الجمعة والسبت عطلة — ما بينعدّوا ضمن أيام إرجاع القطعة */
+const WEEKEND = [5, 6]; // getDay(): الجمعة = 5، السبت = 6
+
+/** بيضيف n يوم دوام على التاريخ (بيتخطّى الجمعة والسبت) */
+export function addWorkdays(date, n){
+  const d = new Date(date);
+  let left = Math.max(0, Math.round(Number(n) || 0));
+  while(left > 0){
+    d.setDate(d.getDate() + 1);
+    if(!WEEKEND.includes(d.getDay())) left--;
+  }
+  return d;
+}
+
+/**
+ * موعد رجوع القطعة. الحركات القديمة كانت تنحسب بأيام عادية —
+ * منعيد حسابها بأيام الدوام بنفس عدد الأيام اللي انحفظ وقتها.
+ */
+export function releaseOf(t){
+  if(!t || !t.releaseDate) return null;
+  if(t.releaseRule === 'workdays') return new Date(t.releaseDate);
+  const base = new Date(t.date);
+  const n = Math.round((new Date(t.releaseDate) - base) / 86400000);
+  return addWorkdays(base, n);
+}
+
 /* ─────────── الحركات ─────────── */
 /* type 'in'  → إيداع: بترصد فوراً
    type 'out' → طلبية: orderPrice بتنخصم فوراً،
@@ -165,8 +192,8 @@ export async function addTx(input){
   };
   if(t.type === 'out' && t.returnPrice > 0){
     const rel = new Date(date);
-    rel.setDate(rel.getDate() + Number(state.settings.returnDelayDays || 3));
-    t.releaseDate = rel.toISOString();
+    t.releaseDate = addWorkdays(date, Number(state.settings.returnDelayDays || 3)).toISOString();
+    t.releaseRule = 'workdays';
   }
   if(mode === 'cloud'){
     const { id, ...data } = t;
@@ -236,7 +263,7 @@ export function statsOf(personId, mk = monthKey()){
         if(t.orderPrice >= s.counterMin && t.orderPrice <= s.counterMax) orders++;
       }
       if(t.returnPrice > 0){
-        const rel = t.releaseDate ? new Date(t.releaseDate) : d;
+        const rel = releaseOf(t) || d;
         if(rel <= now){ balance += t.returnPrice; totalBack += t.returnPrice; }
         else { pending += t.returnPrice; pendingCount++; }
       }
@@ -274,9 +301,9 @@ export function globalStats(mk = monthKey()){
 export function pendingReturns(){
   const now = new Date();
   return state.tx
-    .filter(t => t.type === 'out' && t.returnPrice > 0 && t.releaseDate && new Date(t.releaseDate) > now)
+    .filter(t => t.type === 'out' && t.returnPrice > 0 && t.releaseDate && releaseOf(t) > now)
     .map(t => {
-      const rel = new Date(t.releaseDate);
+      const rel = releaseOf(t);
       const days = Math.max(0, Math.ceil((rel - now) / 86400000));
       const p = state.people.find(x => x.id === t.personId);
       return { ...t, rel, days, personName: p ? p.name : '—', color: p ? p.color : '#888' };

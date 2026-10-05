@@ -450,7 +450,7 @@ function txRow(t, showPerson){
       <button class="icon-btn tx-del" data-deltx="${t.id}" aria-label="حذف الحركة">${icon('trash')}</button>
     </div>`;
   }
-  const rel = t.releaseDate ? new Date(t.releaseDate) : null;
+  const rel = S.releaseOf(t);
   const done = rel ? rel <= now : true;
   const days = rel ? Math.max(0, Math.ceil((rel - now) / 86400000)) : 0;
   const counted = t.orderPrice >= S.settings().counterMin && t.orderPrice <= S.settings().counterMax;
@@ -506,7 +506,7 @@ function viewSettings(){
             <input id="s2" type="number" step="any" value="${s.readyThreshold}"></div>
         </div>
         <div class="row-2">
-          <div class="field"><label for="s3">أيام تأخير القطعة الراجعة</label>
+          <div class="field"><label for="s3">أيام دوام قبل رجوع القطعة</label>
             <input id="s3" type="number" step="1" min="0" value="${s.returnDelayDays}">
             <p class="hint">بينطبق على الحركات الجديدة فقط</p></div>
           <div class="field"><label for="s6">رمز العملة</label>
@@ -682,7 +682,7 @@ function txForm(type, personId = null, pre = {}){
   openSheet(`
     <div class="sheet-head">
       <div><h3>${isIn ? 'ترصيد مبلغ' : 'طلبية جديدة'}</h3>
-        <p>${isIn ? 'المبلغ بينضاف للرصيد فوراً' : 'سعر الطلبية بينخصم فوراً، والقطعة الراجعة بتنضاف بعد ' + S.settings().returnDelayDays + ' أيام'}</p></div>
+        <p>${isIn ? 'المبلغ بينضاف للرصيد فوراً' : 'سعر الطلبية بينخصم فوراً، والقطعة الراجعة بتنضاف بعد ' + S.settings().returnDelayDays + ' أيام دوام (بدون جمعة وسبت)'}</p></div>
       <button class="icon-btn" data-close aria-label="إغلاق">${icon('x')}</button>
     </div>
     <form id="tf">
@@ -700,7 +700,7 @@ function txForm(type, personId = null, pre = {}){
         <div class="row-2">
           <div class="field"><label for="to">سعر الطلبية <span style="color:var(--danger)">(خصم فوري)</span></label>
             <input id="to" type="number" step="any" min="0" required data-autofocus inputmode="decimal" placeholder="0" value="${pre.orderPrice ?? ''}"></div>
-          <div class="field"><label for="tr">سعر القطعة الراجعة <span style="color:var(--ok)">(بعد ${S.settings().returnDelayDays} أيام)</span></label>
+          <div class="field"><label for="tr">سعر القطعة الراجعة <span style="color:var(--ok)">(بعد ${S.settings().returnDelayDays} أيام دوام)</span></label>
             <input id="tr" type="number" step="any" min="0" inputmode="decimal" placeholder="0" value="${pre.returnPrice ?? ''}"></div>
         </div>
       `}
@@ -732,8 +732,7 @@ function txForm(type, personId = null, pre = {}){
     }else{
       const o = Number($('#to').value) || 0;
       const r = Number($('#tr').value) || 0;
-      const rel = new Date($('#td').value || today());
-      rel.setDate(rel.getDate() + Number(s.returnDelayDays || 0));
+      const rel = S.addWorkdays(new Date($('#td').value || today()), Number(s.returnDelayDays || 0));
       const counted = o >= s.counterMin && o <= s.counterMax;
       rows = `
         <div><span>الرصيد الحالي</span><b class="num">${nf(st.balance)}</b></div>
@@ -844,7 +843,7 @@ function exportCSV(){
   S.txs().slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(t => rows.push([
     fdate(t.date), nameOf(t.personId), t.type === 'in' ? 'إيداع' : 'طلبية',
     t.type === 'in' ? t.amount : '', t.type === 'out' ? t.orderPrice : '',
-    t.type === 'out' ? t.returnPrice : '', t.releaseDate ? fdate(t.releaseDate) : '',
+    t.type === 'out' ? t.returnPrice : '', t.releaseDate ? fdate(S.releaseOf(t)) : '',
     t.note || '', t.by || ''
   ]));
   const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
