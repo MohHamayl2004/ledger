@@ -50,6 +50,52 @@ const dtypeBadge = (t) => {
   return `<span class="badge ${d.cls}">${ico(d.icon)}${d.label}</span>`;
 };
 const isPickup = (o) => o && o.deliveryType === 'pickup';
+/* ------- واتساب ------- */
+const WA_DEFAULT = 'مرحبا {الاسم}\nطلبيتك من موقع {البرنامج} وصلت\nوتكلفتها مع التوصيل {المبلغ} شيكل\nخلال يومين الطلبية بتكون وصلت عندك\nبتمنالك تجربة ممتعة';
+const waTemplate = () => (DB.settings.waTemplate && DB.settings.waTemplate.trim()) || WA_DEFAULT;
+const plainNum = (n) => { const v = C.round2(C.num(n)); return Number.isInteger(v) ? String(v) : v.toFixed(2); };
+
+/** زبون الطلبية (بالرقم التعريفي أو برقم التلفون) */
+function custOf(o) {
+  return DB.customers.find((c) => c.id === o.customerId) || findCustomerByPhone(o.phone) || null;
+}
+
+/** رقم الواتساب ومقدمته لطلبية: رقم الواتساب إذا موجود، وإلا رقم التوصيل */
+function waTarget(o) {
+  const c = custOf(o);
+  const local = (c && c.waPhone) || o.waPhone || (c && c.phone) || o.phone || '';
+  const chosen = (c && c.waPrefix) || o.waPrefix || '';
+  return { c, local, chosen, prefix: chosen || C.waAutoPrefix(local) };
+}
+
+function waMessage(o) {
+  let t = waTemplate();
+  if (!o.platform) t = t.replace(/\s*من موقع\s*\{البرنامج\}/g, '').replace(/\{البرنامج\}/g, '');
+  return t
+    .replace(/\{الاسم\}/g, o.customerName || '')
+    .replace(/\{البرنامج\}/g, o.platform || '')
+    .replace(/\{المبلغ\}/g, plainNum(C.customerPays(o)))
+    .replace(/\{التوصيل\}/g, plainNum(o.deliveryPrice));
+}
+
+/** بيفتح محادثة الزبون برسالة جاهزة. prefix (اختياري) بيغيّر المقدمة وبيحفظها على الزبون */
+function openWhatsApp(id, prefix) {
+  const o = DB.orders.find((x) => x.id === id);
+  if (!o) return;
+  const t = waTarget(o);
+  if (!t.local) { toast('ما في رقم للزبون', 'err'); return; }
+  if (prefix && prefix !== t.prefix) {
+    if (t.c) t.c.waPrefix = prefix;
+    o.waPrefix = prefix;
+  }
+  const num = C.waNumber(t.local, prefix || t.prefix);
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(waMessage(o)), '_blank', 'noopener');
+  o.waSentAt = new Date().toISOString();
+  save(true);
+  refreshAll();
+  if ($('#viewModal').classList.contains('open')) viewOrder(id);
+}
+
 /** وصف الخصم: «توصيل مجاني» أو «خصم 50 ₪» أو '' */
 const discountLabel = (o) => (!o || !o.discountType ? ''
   : o.discountType === 'free_delivery' ? 'توصيل مجاني'
@@ -286,7 +332,7 @@ function filteredOrders() {
       if (!q) return true;
       const inName = String(o.customerName || '').toLowerCase().includes(q);
       const inAddr = (String(o.address1 || '') + ' ' + String(o.address2 || '')).toLowerCase().includes(q);
-      const inPhone = qPhone && C.normalizePhone(o.phone).includes(qPhone);
+      const inPhone = qPhone && [o.phone, o.phone2, o.waPhone].some((x) => x && C.normalizePhone(x).includes(qPhone));
       return inName || inAddr || inPhone;
     })
     .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -341,11 +387,13 @@ function renderOrders() {
           <div class="cell-sub num">${C.num(o.profitPercent)}%${expected ? ' · متوقع' : ''}</div></td>
         <td>${statusBadge(o.status)}
           ${o.unitedId ? `<div class="cell-sub" title="رقم الطلبية عند يونايتد">${ico('send')} <span class="num">${esc(o.unitedRef || o.unitedId)}</span></div>` : ''}
-          ${o.statusSource === 'united' ? '<div class="cell-sub text-faint">من يونايتد</div>' : ''}</td>
+          ${o.statusSource === 'united' ? '<div class="cell-sub text-faint">من يونايتد</div>' : ''}
+          ${o.waSentAt ? `<div class="cell-sub wa-sent" title="${esc(new Date(o.waSentAt).toLocaleString('en-GB'))}">${ico('whatsapp')} انبعتت</div>` : ''}</td>
         <td class="actions">
           ${pickup
             ? `<button class="btn btn-sm btn-icon btn-ghost" disabled title="نقطة استلام — ما بترفع ليونايتد" aria-label="نقطة استلام" style="opacity:.3">${ico('send')}</button>`
             : `<button class="btn btn-sm btn-icon btn-ghost" data-act="send" data-id="${o.id}" title="${o.unitedId ? 'مرسلة ليونايتد' : 'رفع ليونايتد'}" aria-label="رفع ليونايتد" style="color:${o.unitedId ? 'var(--text-faint)' : 'var(--info)'}">${ico('send')}</button>`}
+          <button class="btn btn-sm btn-icon btn-ghost wa-btn ${o.waSentAt ? 'sent' : ''}" data-act="wa" data-id="${o.id}" title="${o.waSentAt ? 'انبعتت رسالة واتساب — اضغط لتبعت مرة ثانية' : 'رسالة واتساب للزبون'}" aria-label="واتساب">${ico('whatsapp')}</button>
           <button class="btn btn-sm btn-icon btn-ghost" data-act="view" data-id="${o.id}" title="عرض" aria-label="عرض">${ico('eye')}</button>
           <button class="btn btn-sm btn-icon btn-ghost" data-act="edit" data-id="${o.id}" title="تعديل" aria-label="تعديل">${ico('edit')}</button>
           ${o.status !== 'delivered' ? `<button class="btn btn-sm btn-icon btn-ghost" data-act="deliver" data-id="${o.id}" title="تحديد كمستلمة" aria-label="تحديد كمستلمة" style="color:var(--primary)">${ico('check')}</button>` : ''}
@@ -430,6 +478,11 @@ function openOrderModal(id) {
   $$('#orderForm .field').forEach((f) => f.classList.remove('invalid'));
 
   $('#oPhone').value = o ? o.phone || '' : '';
+  $('#oPhone2').value = o ? o.phone2 || '' : '';
+  $('#oWaPhone').value = o ? o.waPhone || '' : '';
+  $('#oPhone2On').checked = !!(o && o.phone2);
+  $('#oWaOn').checked = !!(o && o.waPhone);
+  syncPhoneExtras();
   $('#oName').value = o ? o.customerName || '' : '';
   $('#oAddr1').value = o ? o.address1 || '' : '';
   pickedAreaId = o ? (o.address1Id || null) : null;
@@ -528,13 +581,21 @@ function saveOrder() {
   valid = markField($('#oDate'), !date) && valid;
   if (!valid) { toast('في حقول ناقصة، راجعها من فضلك', 'err'); return; }
 
-  const cust = upsertCustomer({ name, phone, address1: addr1, address2: $('#oAddr2').value.trim(), areaId: pickedAreaId || null });
+  // الأرقام بتنحفظ بالشكل المحلي (05…) — وإذا انكتبت بمقدمة دولية منتذكّرها للواتساب
+  const p1 = C.localPhone(phone);
+  const p2 = $('#oPhone2On').checked ? C.localPhone($('#oPhone2').value) : { local: '', prefix: '' };
+  const pw = $('#oWaOn').checked ? C.localPhone($('#oWaPhone').value) : { local: '', prefix: '' };
+  const waPrefix = pw.local ? pw.prefix : p1.prefix;
+  const cust = upsertCustomer({ name, phone: p1.local, phone2: p2.local, waPhone: pw.local, waPrefix,
+    address1: addr1, address2: $('#oAddr2').value.trim(), areaId: pickedAreaId || null });
 
   const pickup = currentDeliveryType === 'pickup';
   const payload = {
     customerId: cust.id,
     customerName: name,
-    phone,
+    phone: p1.local,
+    phone2: p2.local,
+    waPhone: pw.local,
     address1: addr1,
     address1Id: pickedAreaId || null,
     address2: $('#oAddr2').value.trim(),
@@ -596,7 +657,7 @@ function viewOrder(id) {
   $('#viewBody').innerHTML = `
     <div class="flex mb-5" style="justify-content:space-between">
       <div><div class="stat-label">الزبون</div><h3 style="font-size:19px">${esc(o.customerName)}</h3>
-        <div class="cell-sub num">${esc(o.phone)}</div></div>
+        <div class="cell-sub num">${esc(o.phone)}${o.phone2 ? ' · ' + esc(o.phone2) : ''}</div></div>
       ${statusBadge(o.status)}
     </div>
     <dl class="kv">
@@ -626,6 +687,18 @@ function viewOrder(id) {
     ${o.status !== 'delivered' ? `<button class="btn" data-act="deliver" data-id="${o.id}" style="color:var(--primary)">${ico('check')}مستلمة</button>` : ''}
     ${o.status !== 'returned' ? `<button class="btn" data-act="return" data-id="${o.id}" style="color:var(--warn)">${ico('arrowDown')}راجعة</button>` : ''}
     <button class="btn btn-primary" data-act="edit" data-id="${o.id}">${ico('edit')}تعديل</button>`;
+  // واتساب: الرقم والمقدمة + زر للمقدمة الثانية لو الأولى غلط
+  const wt = waTarget(o);
+  const other = wt.prefix === '970' ? '972' : '970';
+  if (wt.local) $('#viewBody').insertAdjacentHTML('beforeend', `
+    <div class="wa-box mt-5">
+      <div class="flex wrap" style="align-items:center;gap:var(--sp-2)">
+        <button class="btn wa-btn" data-act="wa" data-id="${o.id}">${ico('whatsapp')}رسالة واتساب</button>
+        <span class="num fs-13">+${C.waNumber(wt.local, wt.prefix)}</span>
+        <button class="btn btn-sm btn-ghost" data-act="wa" data-id="${o.id}" data-prefix="${other}" title="إذا الرقم مش على واتساب بهالمقدمة">جرّب +${other}</button>
+      </div>
+      <div class="fs-12 text-faint mt-4">${o.waSentAt ? `انبعتت ${esc(new Date(o.waSentAt).toLocaleString('en-GB'))} · ` : ''}${wt.chosen ? 'المقدمة محفوظة لهذا الزبون' : 'المقدمة تلقائية'}</div>
+    </div>`);
   openModal('#viewModal');
 }
 
@@ -644,6 +717,9 @@ function upsertCustomer(info) {
     if (info.address1) existing.address1 = info.address1;
     if (info.address2) existing.address2 = info.address2;
     if (info.areaId) existing.areaId = info.areaId;
+    if ('phone2' in info) existing.phone2 = info.phone2 || '';
+    if ('waPhone' in info) existing.waPhone = info.waPhone || '';
+    if (info.waPrefix) existing.waPrefix = info.waPrefix;
     existing.updatedAt = new Date().toISOString();
     return existing;
   }
@@ -652,7 +728,19 @@ function upsertCustomer(info) {
   return c;
 }
 
+function syncPhoneExtras() {
+  const two = $('#oPhone2On').checked;
+  $('#oPhone2Field').classList.toggle('hidden', !two);
+  $('#oWaField').classList.toggle('hidden', !$('#oWaOn').checked);
+  $('#oWaSame2').classList.toggle('hidden', !two);
+}
+
 function fillFromCustomer(c, keepPhone) {
+  $('#oPhone2').value = c.phone2 || '';
+  $('#oWaPhone').value = c.waPhone || '';
+  $('#oPhone2On').checked = !!c.phone2;
+  $('#oWaOn').checked = !!c.waPhone;
+  syncPhoneExtras();
   $('#oName').value = c.name || '';
   if (!keepPhone) $('#oPhone').value = c.phone || '';
   $('#oAddr1').value = c.address1 || '';
@@ -762,6 +850,9 @@ function openCustModal(id) {
   $$('#custForm .field').forEach((f) => f.classList.remove('invalid'));
   $('#cPhone').value = c ? c.phone || '' : '';
   $('#cName').value = c ? c.name || '' : '';
+  $('#cPhone2').value = c ? c.phone2 || '' : '';
+  $('#cWaPhone').value = c ? c.waPhone || '' : '';
+  $('#cWaPrefix').value = c ? c.waPrefix || '' : '';
   $('#cAddr1').value = c ? c.address1 || '' : '';
   $('#cAddr2').value = c ? c.address2 || '' : '';
   $('#cNotes').value = c ? c.notes || '' : '';
@@ -779,7 +870,11 @@ function saveCustomer() {
   const dup = findCustomerByPhone(phone);
   if (dup && dup.id !== editingCustId) { toast('في زبون محفوظ بنفس الرقم', 'err'); return; }
 
-  const data = { name, phone, address1: $('#cAddr1').value.trim(), address2: $('#cAddr2').value.trim(), notes: $('#cNotes').value.trim() };
+  const p1 = C.localPhone(phone);
+  const pw = C.localPhone($('#cWaPhone').value);
+  const data = { name, phone: p1.local, phone2: C.localPhone($('#cPhone2').value).local, waPhone: pw.local,
+    waPrefix: $('#cWaPrefix').value || (pw.local ? pw.prefix : p1.prefix) || '',
+    address1: $('#cAddr1').value.trim(), address2: $('#cAddr2').value.trim(), notes: $('#cNotes').value.trim() };
   if (editingCustId) {
     Object.assign(DB.customers.find((x) => x.id === editingCustId), data, { updatedAt: new Date().toISOString() });
     toast('تم تعديل الزبون');
@@ -1244,6 +1339,7 @@ async function sendOrderToUnited(orderId) {
 const U_SOURCES = [
   { key: 'name', label: 'اسم الزبون' },
   { key: 'phone', label: 'رقم الزبون' },
+  { key: 'phone2', label: 'رقم التوصيل الثاني' },
   { key: 'address1', label: 'العنوان الأول' },
   { key: 'address2', label: 'العنوان التفصيلي' },
   { key: 'pieces', label: 'عدد القطع' },
@@ -1647,6 +1743,7 @@ async function sendViaWeb(src, silent, linkOrderId) {
     name: src.name || '', phone: src.phone || '',
     address1: src.address1 || '', address1Id: src.address1Id || src.areaId || null,
     address2: src.address2 || '',
+    phone2: src.phone2 || '',
     pieces: src.pieces || '', price: src.price || '', deliveryPrice: src.deliveryPrice || '',
     // المبلغ اللي بيتحصّل من الزبون: سعر الطلبية + التوصيل − الخصم
     total: src.price !== undefined && src.price !== '' ? C.customerPays(src) : '',
@@ -1796,6 +1893,7 @@ function bind() {
       const id = b.dataset.id;
       const act = b.dataset.act;
       if (act === 'send') sendOrderToUnited(id);
+      else if (act === 'wa') openWhatsApp(id, b.dataset.prefix);
       else if (act === 'view') viewOrder(id);
       else if (act === 'edit') { closeModal('#viewModal'); openOrderModal(id); }
       else if (act === 'deliver') { setStatus(id, 'delivered'); closeModal('#viewModal'); }
@@ -2362,6 +2460,17 @@ async function processLogo(file) {
 
 function bindWeb() {
   renderBrand();
+
+  // رسالة الواتساب
+  const tpl = $('#setWaTemplate');
+  tpl.value = waTemplate();
+  tpl.addEventListener('change', () => { DB.settings.waTemplate = tpl.value; save(); toast('تم حفظ الرسالة'); });
+  $('#waReset').addEventListener('click', () => { delete DB.settings.waTemplate; tpl.value = WA_DEFAULT; save(); toast('رجع النص الأصلي'); });
+
+  // أرقام إضافية بنافذة الطلبية
+  $('#oPhone2On').addEventListener('change', () => { syncPhoneExtras(); if ($('#oPhone2On').checked) $('#oPhone2').focus(); });
+  $('#oWaOn').addEventListener('change', () => { syncPhoneExtras(); if ($('#oWaOn').checked) $('#oWaPhone').focus(); });
+  $('#oWaSame2').addEventListener('click', () => { $('#oWaPhone').value = $('#oPhone2').value; });
   $('#logoUpload').addEventListener('click', () => {
     const i = document.createElement('input');
     i.type = 'file';

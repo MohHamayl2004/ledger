@@ -142,6 +142,11 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 .brand.has-logo { padding-inline: var(--sp-2); }
 .logo-preview { width: 220px; height: 90px; border: 1px dashed var(--border-strong); border-radius: 14px; display: grid; place-items: center; background: #fff; overflow: hidden; color: #888; font-size: 12px; }
 .logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; padding: 8px; }
+.phone-extras { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); margin-top: calc(var(--sp-2) * -1); }
+.phone-extras .lbl { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.wa-btn { color: #25d366 !important; }
+.wa-btn.sent { color: var(--text-faint) !important; }
+.wa-sent { color: #25d366; }
 .brand-text span { display: block; font-size: 11.5px; color: var(--text-faint); margin-top: -3px; }
 
 .nav { display: flex; flex-direction: column; gap: 3px; }

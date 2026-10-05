@@ -329,6 +329,15 @@
       <!-- ============ الإعدادات ============ -->
       <section class="view" id="view-settings">
         <div class="card mb-5">
+          <div class="card-head"><h3>رسالة الواتساب</h3><div class="spacer"></div>
+            <button class="btn btn-sm" id="waReset">النص الأصلي</button></div>
+          <div class="card-body flex-col">
+            <textarea id="setWaTemplate" rows="6" style="resize:vertical"></textarea>
+            <p class="fs-12 text-faint">بتنعبّى لحالها: <code>{الاسم}</code> اسم الزبون · <code>{البرنامج}</code> الموقع اللي طلب منه · <code>{المبلغ}</code> سعر الطلبية مع التوصيل (بعد الخصم) · <code>{التوصيل}</code> سعر التوصيل</p>
+          </div>
+        </div>
+
+        <div class="card mb-5">
           <div class="card-head"><h3>شعار المتجر</h3><div class="spacer"></div>
             <button class="btn btn-sm btn-primary" id="logoUpload"><i data-icon="upload"></i>رفع شعار</button>
             <button class="btn btn-sm btn-danger hidden" id="logoRemove"><i data-icon="trash"></i>إزالة</button></div>
@@ -445,6 +454,23 @@
             <input type="text" id="oName" placeholder="الاسم الكامل">
             <div class="suggest" id="nameSuggest"></div>
             <span class="err">مطلوب إدخال اسم الزبون</span>
+          </div>
+          <div class="span-2 phone-extras">
+            <label class="switch"><input type="checkbox" id="oPhone2On"><span class="track"></span><span class="lbl">رقم توصيل ثاني</span></label>
+            <label class="switch"><input type="checkbox" id="oWaOn"><span class="track"></span><span class="lbl">رقم الواتساب غير رقم التوصيل</span></label>
+          </div>
+          <div class="field hidden" id="oPhone2Field">
+            <label for="oPhone2">رقم التوصيل الثاني</label>
+            <input type="text" id="oPhone2" inputmode="tel" placeholder="05xxxxxxxx">
+            <span class="hint">بينبعث ليونايتد مع الرقم الأول.</span>
+          </div>
+          <div class="field hidden" id="oWaField">
+            <label for="oWaPhone">رقم الواتساب</label>
+            <div class="flex" style="gap:var(--sp-2)">
+              <input type="text" id="oWaPhone" inputmode="tel" placeholder="05xxxxxxxx" style="flex:1">
+              <button type="button" class="btn btn-sm hidden" id="oWaSame2">نفس الرقم الثاني</button>
+            </div>
+            <span class="hint">بس للواتساب — ما بينبعث ليونايتد.</span>
           </div>
           <div class="field rel">
             <label for="oAddr1">العنوان الأول (المنطقة) <span class="req">*</span></label>
@@ -564,6 +590,16 @@
         <div class="field">
           <label for="cName">الاسم <span class="req">*</span></label>
           <input type="text" id="cName"><span class="err">مطلوب</span>
+        </div>
+        <div class="field"><label for="cPhone2">رقم توصيل ثاني</label><input type="text" id="cPhone2" inputmode="tel" placeholder="اختياري"></div>
+        <div class="field"><label for="cWaPhone">رقم الواتساب</label><input type="text" id="cWaPhone" inputmode="tel" placeholder="إذا غير رقم التوصيل">
+        </div>
+        <div class="field"><label for="cWaPrefix">مقدمة الواتساب</label>
+          <select id="cWaPrefix">
+            <option value="">تلقائي (059/056 = ‎+970، الباقي = ‎+972)</option>
+            <option value="970">‎+970</option>
+            <option value="972">‎+972</option>
+          </select>
         </div>
         <div class="field"><label for="cAddr1">العنوان الأول</label><input type="text" id="cAddr1"></div>
         <div class="field"><label for="cAddr2">العنوان التفصيلي</label><input type="text" id="cAddr2"></div>

@@ -7,7 +7,7 @@
    فالصفحة بتشتغل بدون نت وبتزامن لما يرجع.
    ================================================================ */
 import { auth, db, fs, currentUser, membership, logout } from '../js/fb.js';
-import { createUnitedApi } from './united.js';
+import { createUnitedApi, guessMapping } from './united.js';
 
 const COLLECTIONS = ['customers', 'orders', 'ledgers', 'expenses', 'shipments'];
 const BACKUP_KEEP = 30;
@@ -90,6 +90,15 @@ function migrate(d) {
   if (!Array.isArray(u.fieldsCache)) u.fieldsCache = [];
   if (!Array.isArray(u.areas)) u.areas = [];
   if (!u.statusMap || typeof u.statusMap !== 'object') u.statusMap = {};
+  // مرة وحدة: نلاقي حقل «الرقم الثاني» عند يونايتد ونربطه برقم التوصيل الثاني
+  if (!u.phone2Guessed && u.fieldsCache.length) {
+    if (!Object.values(u.mapping).includes('phone2')) {
+      const g = guessMapping(u.fieldsCache);
+      const field = Object.keys(g).find((k) => g[k] === 'phone2');
+      if (field && !u.mapping[field]) u.mapping[field] = 'phone2';
+    }
+    u.phone2Guessed = true;
+  }
   // مرة وحدة: الحقل اللي كان بياخذ «سعر الطلبية» صار ياخذ «السعر شامل التوصيل»
   if (!u.totalMigrated) {
     for (const [field, src] of Object.entries(u.mapping)) if (src === 'price') u.mapping[field] = 'total';

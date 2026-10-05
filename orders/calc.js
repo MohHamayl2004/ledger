@@ -209,6 +209,35 @@
   }
 
   /** تطبيع رقم الهاتف للمقارنة (أرقام فقط، مع تجاهل صفر البداية ورمز الدولة) */
+  const digitsOnly = (p) => String(p || '')
+    .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+    .replace(/\D/g, '');
+
+  /**
+   * رقم بالشكل المحلي (05xxxxxxxx) — هيك بينحفظ وبينبعث ليونايتد.
+   * إذا انكتب بمقدمة دولية (+970 / 00972 …) منرجّع المقدمة كمان عشان الواتساب.
+   */
+  function localPhone(p) {
+    let s = digitsOnly(p);
+    let prefix = '';
+    if (s.startsWith('00')) s = s.slice(2);
+    if (/^97[02]/.test(s) && s.length >= 11) { prefix = s.slice(0, 3); s = s.slice(3); }
+    if (s && !s.startsWith('0')) s = '0' + s;
+    return { local: s, prefix };
+  }
+
+  /** المقدمة التلقائية للواتساب: جوّال/أوريدو (059، 056) = 970، الباقي = 972 */
+  function waAutoPrefix(local) {
+    return /^05[69]/.test(localPhone(local).local) ? '970' : '972';
+  }
+
+  /** الرقم الدولي للواتساب (بدون + وبدون صفر البداية) */
+  function waNumber(local, prefix) {
+    const l = localPhone(local).local.replace(/^0+/, '');
+    return (prefix || waAutoPrefix(local)) + l;
+  }
+
   function normalizePhone(p) {
     let s = String(p || '')
       .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
@@ -315,7 +344,7 @@
 
   return {
     num, round2, orderProfit, expectedProfit, pickupCost, discountOf, customerPays, monthKey, inRange,
-    summarize, byMonth, ledgerBalance, normalizePhone,
+    summarize, byMonth, ledgerBalance, normalizePhone, localPhone, waAutoPrefix, waNumber,
     expensesInRange, summarizeExpenses, expensesByMonth, netAfterExpenses,
     waitDaysFor, readyAt, daysLeft, parcelState, shipmentStats, readyParcels, dueForCheck
   };

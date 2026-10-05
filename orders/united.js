@@ -310,6 +310,12 @@ const GUESS_RULES = [
           'receiver mobile', 'customer mobile', 'client phone', 'receiver phone'],
     not: ['تاجر', 'ثاني', 'الثاني', 'واتس', 'ونس', 'merchant', 'sender', 'second', 'two', 'whatsapp', 'alt'] },
 
+  { source: 'phone2',
+    exact: ['customer_second_mobile', 'second_mobile_number', 'customer_mobile_2', 'second_mobile'],
+    any: ['رقم التلفون الثاني', 'التلفون الثاني', 'الرقم الثاني', 'هاتف ثاني', 'جوال ثاني',
+          'second mobile', 'second phone', 'mobile 2', 'phone 2', 'alternative mobile', 'alt mobile'],
+    not: ['تاجر', 'merchant', 'sender', 'business', 'agent', 'driver'] },
+
   { source: 'address1',
     exact: ['customer_sub_area', 'customer_area'],
     any: ['receiver sub area', 'receiver area', 'عنوان الزبون', 'منطقة الزبون', 'منطقة المستلم', 'مدينة', 'المنطقة'],
