@@ -1,0 +1,29 @@
+# خادم MCP عن بُعد (Connector) — شوف README قسم ٩
+name = "laqta-mcp"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+# مخزن مكتبة OAuth. اعمله مرة وحدة:  npx wrangler kv namespace create OAUTH_KV
+# وحط الـ id اللي بيطلع هون.
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "PUT_KV_NAMESPACE_ID_HERE"
+
+[vars]
+# رابط الـ Worker بعد النشر (عدّله إذا اسم الـ subdomain غير)
+PUBLIC_URL = "https://laqta-mcp.palestiniantemu.workers.dev"
+# الدخول بيقبل بس إذا التوكن رايح لهدول (Claude)
+ALLOWED_REDIRECT_HOSTS = "claude.ai,claude.com"
+
+# الأسرار (ما بتنحط هون):  npx wrangler secret put UNITED_LOGIN
+#                          npx wrangler secret put UNITED_PASSWORD
+
+# ---- للتجربة على الجهاز فقط (Firebase Emulator) ----
+[env.dev]
+compatibility_flags = ["nodejs_compat"]
+kv_namespaces = [{ binding = "OAUTH_KV", id = "dev-local" }]
+[env.dev.vars]
+FIREBASE_EMULATOR = "1"
+PUBLIC_URL = "http://127.0.0.1:8787"
+ALLOWED_REDIRECT_HOSTS = "claude.ai,claude.com,localhost,127.0.0.1"

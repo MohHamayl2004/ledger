@@ -179,3 +179,23 @@ npm install
 ```bash
 claude mcp add laqta --scope user -e FIREBASE_EMAIL=... -e FIREBASE_PASSWORD=... -e UNITED_LOGIN=... -e UNITED_PASSWORD=... -- node "C:\Users\Owner's\Desktop\ledger\mcp\server.js"
 ```
+
+---
+
+## ٩) Connector عن بُعد (claude.ai + التلفون)
+
+نفس الأدوات، بس على Cloudflare: بتشتغل من claude.ai وتطبيق Claude على التلفون حتى لو اللابتوب مطفي.
+- الملف: [`mcp/worker.js`](mcp/worker.js) — الأدوات نفسها من [`mcp/core/tools.js`](mcp/core/tools.js).
+- الدخول: صفحة بتطلب إيميل وكلمة سر الموقع (OAuth). بس الأعضاء بيقدروا يربطوا، وبس لـ Claude.
+- كلمة سر الموقع ما بتنحفظ. بيانات يونايتد بـ Cloudflare secrets.
+
+**النشر (مرة وحدة، من مجلد `mcp` بـ PowerShell):**
+1. `npx wrangler kv namespace create OAUTH_KV` → انسخ الـ `id` وحطه بـ [`mcp/wrangler.toml`](mcp/wrangler.toml) مكان `PUT_KV_NAMESPACE_ID_HERE`.
+2. `npx wrangler secret put UNITED_LOGIN --env=""` (بيسألك عن القيمة)
+3. `npx wrangler secret put UNITED_PASSWORD --env=""`
+4. `npx wrangler deploy --env=""`
+
+**الربط بـ Claude:** claude.ai ← Settings ← Connectors ← Add custom connector ← الرابط:
+`https://laqta-mcp.palestiniantemu.workers.dev/mcp` ← Connect ← سجّل دخول بحساب الموقع.
+
+لإلغاء الربط: من نفس المكان بـ Claude (Disconnect). ولإيقاف أي حساب: امسح مستنده من `members` (بيوقف خلال 5 دقائق).
