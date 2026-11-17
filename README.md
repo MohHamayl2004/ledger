@@ -155,3 +155,27 @@ worker/                    وسيط يونايتد (Cloudflare Worker)
 شغّل سيرفر محلي من مجلد المشروع (مثلاً `python -m http.server 8080`) وافتح `http://localhost:8080`.
 لتجربة بدون ما تلمس البيانات الحقيقية: شغّل Firebase Emulator (Auth على 9099 وFirestore على 8081) واكتب في Console المتصفح:
 `localStorage.setItem('useEmulator','1')`.
+
+---
+
+## ٨) Claude كأداة للطلبيات (MCP)
+
+مجلد [`mcp/`](mcp/) فيه خادم MCP بيخلّي Claude يضيف طلبيات ويبعتها ليونايتد — بنفس حسابات الموقع بالضبط (`orders/calc.js` و`orders/united.js`).
+
+**الأدوات:** `get_settings` · `search_customers` · `search_areas` · `add_order` · `list_orders` · `get_order` · `united_status` · `send_order_to_united`
+
+**قواعد ما بتنكسر (مفروضة بالكود):**
+- كل حقل مهم إجباري — إذا ناقص، الأداة بترفض وبتقول شو ناقص.
+- البرنامج لازم يكون من قائمة البرامج، والمنطقة لازم تطابق قائمة مناطق يونايتد حرفياً.
+- المربح قرارك بكل طلبية: `platform` (نسبة البرنامج) أو `none` (بدون ربح) أو `custom` (نسبة بتحددها).
+- كل إضافة وإرسال إلها معاينة (`dry_run`) قبل التنفيذ. والطلبية المرسلة ما بتنبعت مرة ثانية إلا إذا طلبت صراحة.
+
+**التركيب (مرة وحدة):**
+```bash
+cd mcp
+npm install
+```
+وبعدين سجّله بـ Claude Code (اكتب قيمك مكان النقاط — بتنحفظ على جهازك بس):
+```bash
+claude mcp add laqta --scope user -e FIREBASE_EMAIL=... -e FIREBASE_PASSWORD=... -e UNITED_LOGIN=... -e UNITED_PASSWORD=... -- node "C:\Users\Owner's\Desktop\ledger\mcp\server.js"
+```

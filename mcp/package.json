@@ -1,0 +1,15 @@
+{
+  "name": "laqta-orders-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MCP server: إضافة طلبيات وإرسالها ليونايتد من Claude — بنفس منطق الموقع",
+  "type": "module",
+  "main": "server.js",
+  "bin": { "laqta-orders-mcp": "server.js" },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "firebase": "^10.12.5",
+    "zod": "^3.23.8"
+  }
+}
