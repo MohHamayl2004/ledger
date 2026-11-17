@@ -5,11 +5,18 @@
   "description": "MCP server: إضافة طلبيات وإرسالها ليونايتد من Claude — بنفس منطق الموقع",
   "type": "module",
   "main": "server.js",
-  "bin": { "laqta-orders-mcp": "server.js" },
-  "engines": { "node": ">=20" },
+  "bin": {
+    "laqta-orders-mcp": "server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "firebase": "^10.12.5",
-    "zod": "^3.23.8"
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "firebase": "^13.4.0",
+    "zod": "^4.6.7"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.7"
   }
 }
