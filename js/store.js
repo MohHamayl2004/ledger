@@ -174,7 +174,8 @@ export function releaseOf(t){
 /* type 'in'  → إيداع: بترصد فوراً
    type 'out' → طلبية: orderPrice بتنخصم فوراً،
                 returnPrice بتنضاف بعد returnDelayDays يوم */
-export async function addTx(input){
+/** بيبني الحركة بنفس قواعد الدفتر (بدون حفظ) — بيستعملها الموقع وأداة MCP */
+export function buildTx(input, s = state.settings){
   const now = new Date();
   const date = input.date ? new Date(input.date + 'T' + now.toTimeString().slice(0,8)) : now;
   const t = {
@@ -191,10 +192,14 @@ export async function addTx(input){
     releaseDate: null
   };
   if(t.type === 'out' && t.returnPrice > 0){
-    const rel = new Date(date);
-    t.releaseDate = addWorkdays(date, Number(state.settings.returnDelayDays || 3)).toISOString();
+    t.releaseDate = addWorkdays(date, Number(s.returnDelayDays || 3)).toISOString();
     t.releaseRule = 'workdays';
   }
+  return t;
+}
+
+export async function addTx(input){
+  const t = buildTx(input);
   if(mode === 'cloud'){
     const { id, ...data } = t;
     await cloud.setDoc(cloud.doc(cloud.db, 'tx', id), data);
@@ -221,6 +226,13 @@ export async function saveSettings(patch){
   }else{
     state.settings = next; saveLocal(); emit();
   }
+}
+
+/** لأداة MCP: تحميل نسخة من البيانات عشان نستعمل نفس الحسابات (statsOf …) */
+export function useSnapshot({ people = [], tx = [], settings = {} } = {}){
+  state.people = people;
+  state.tx = tx;
+  state.settings = { ...DEFAULTS, ...settings };
 }
 
 /* ─────────── الحسابات الرياضية ─────────── */

@@ -31,6 +31,7 @@ import {
 
 import { FIREBASE_CONFIG } from '../js/config.js';
 import { United, UnitedError } from '../orders/united.js';
+import * as L from '../js/store.js'; // منطق دفتر الحسابات نفسه (statsOf، buildTx …)
 
 const require = createRequire(import.meta.url);
 const C = require('../orders/calc.js');
@@ -230,7 +231,8 @@ const server = new McpServer({ name: 'laqta-orders', version: '1.0.0' }, {
     'إذا ناقص أي معلومة، اسأل المستخدم — لا تعبّي من عندك.',
     'المربح (profit_mode) قرار المستخدم بكل طلبية: لا تختار platform أو custom أو none إلا إذا المستخدم حكالك.',
     'قبل أي إضافة أو إرسال: نفّذ بـ dry_run=true، اعرض النتيجة على المستخدم، ونفّذ الحقيقي بس بعد موافقته الصريحة.',
-    'المنطقة (address1) لازم تيجي من search_areas. إذا ما في تطابق حرفي، اعرض الاقتراحات واسأل.'
+    'المنطقة (address1) لازم تيجي من search_areas. إذا ما في تطابق حرفي، اعرض الاقتراحات واسأل.',
+    'دفتر الحسابات (list_ledger_accounts / add_ledger_transaction) مشترك بين المستخدم ورزان — أي حركة بتبيّن عند الثنين، فتأكد من الحساب والمبلغ قبل التنفيذ.'
   ].join('\n')
 });
 
@@ -559,6 +561,203 @@ server.registerTool('send_order_to_united', {
     o.updatedAt = o.sentAt;
     await saveRec('orders', o);
     return text({ note: 'انبعتت ليونايتد وانحفظ رقمها على الطلبية.', unitedId: res.id, unitedRef: res.ref, url: res.url, sent: shown });
+  } catch (e) { return fail(e.message); }
+});
+
+/* ---------- monthly_profit_summary ---------- */
+const NO_PLATFORM = '__none';
+const platKey = (o) => (o.platform || '').trim() || NO_PLATFORM;
+
+server.registerTool('monthly_profit_summary', {
+  title: 'ملخص الأرباح الشهري',
+  description: [
+    'نفس صفحة «التقارير والأرباح» بالموقع: ربح الطلبيات، الرسوم والمصاريف، والربح النهائي لكل شهر، مع توزيع حسب البرنامج.',
+    'لما تحدد platform: الأرقام لطلبيات هذا البرنامج بس، والرسوم ما بتنحسب (زي الموقع). قراءة فقط.'
+  ].join('\n'),
+  inputSchema: {
+    from_month: z.string().regex(/^\d{4}-\d{2}$/).describe('YYYY-MM'),
+    to_month: z.string().regex(/^\d{4}-\d{2}$/).describe('YYYY-MM'),
+    platform: z.string().optional().describe('اسم البرنامج بالضبط، أو "بدون برنامج"')
+  },
+  annotations: { readOnlyHint: true }
+}, async ({ from_month, to_month, platform }) => {
+  try {
+    if (from_month > to_month) return fail('from_month لازم يكون قبل أو نفس to_month');
+    const s = await loadSettings();
+    const orders = await loadCol('orders');
+    const expenses = await loadCol('expenses');
+    const all = orders.filter((o) => C.inRange(o, from_month, to_month));
+    let key = '';
+    if (platform) {
+      key = platform.trim() === 'بدون برنامج' ? NO_PLATFORM : platform.trim();
+      const known = (s.platforms || []).map((p) => p.name).concat(orders.map((o) => o.platform || '').filter(Boolean));
+      if (key !== NO_PLATFORM && !known.includes(key)) return fail(`البرنامج «${platform}» مش موجود. الموجود: ${[...new Set(known)].join('، ')}`);
+    }
+    const list = key ? all.filter((o) => platKey(o) === key) : all;
+    const sum = C.summarize(list, s);
+    const months = C.byMonth(list, s);
+    const expList = key ? [] : C.expensesInRange(expenses, from_month, to_month);
+    const expSum = C.summarizeExpenses(expList);
+    const expByMonth = C.expensesByMonth(expList);
+    const net = C.netAfterExpenses(sum, expSum);
+
+    const keys = [...new Set(all.map(platKey))];
+    const byPlatform = keys.map((k) => {
+      const r = C.summarize(all.filter((o) => platKey(o) === k), s);
+      return { platform: k === NO_PLATFORM ? 'بدون برنامج' : k, orders: r.count, delivered: r.delivered, returned: r.returned, pending: r.pending, sales: r.sales, profit: r.netProfit, expectedPending: r.expectedPending };
+    }).sort((a, b) => b.profit - a.profit);
+
+    return text({
+      range: { from: from_month, to: to_month },
+      platform: platform || 'كل البرامج',
+      note: key ? 'الرسوم والمصاريف مش محسوبة لأنها مش تابعة لبرنامج معيّن (زي الموقع).' : undefined,
+      totals: {
+        finalProfit: net,
+        ordersProfit: sum.netProfit,
+        expenses: expSum.total,
+        sales: sum.sales,
+        orders: sum.count, delivered: sum.delivered, returned: sum.returned, pending: sum.pending,
+        discounts: sum.discounts, expectedFromPending: sum.expectedPending
+      },
+      months: months.map((m) => {
+        const ex = (expByMonth[m.month] || {}).total || 0;
+        return { month: m.month, orders: m.count, delivered: m.delivered, returned: m.returned, sales: m.sales, ordersProfit: m.netProfit, expenses: ex, finalProfit: C.round2(m.netProfit - ex) };
+      }),
+      byPlatform,
+      expensesByType: expSum.byType
+    });
+  } catch (e) { return fail(e.message); }
+});
+
+/* ---------- دفتر الحسابات المشترك (people / tx / meta) ---------- */
+
+async function loadLedger() {
+  await ensureLogin();
+  const [p, t, st] = await Promise.all([
+    getDocs(collection(db, 'people')),
+    getDocs(collection(db, 'tx')),
+    getDoc(doc(db, 'meta', 'settings'))
+  ]);
+  L.useSnapshot({
+    people: p.docs.map((d) => Object.assign({}, d.data(), { id: d.id })),
+    tx: t.docs.map((d) => Object.assign({}, d.data(), { id: d.id })),
+    settings: st.exists() ? st.data() : {}
+  });
+}
+
+function accountView(p) {
+  const st = L.statsOf(p.id);
+  return {
+    id: p.id, name: p.name,
+    balance: st.balance,
+    pendingReturns: st.pending, pendingCount: st.pendingCount,
+    monthIn: st.monthIn, monthCap: st.cap, capLeft: st.capLeft,
+    ordersCounterThisMonth: st.orders,
+    ready: st.ready
+  };
+}
+
+/** الحساب لازم يطابق بالاسم الكامل أو الرقم التعريفي — وإلا اقتراحات */
+function findAccount(q) {
+  const people = L.people();
+  const byId = people.find((p) => p.id === q);
+  if (byId) return { p: byId };
+  const exact = people.filter((p) => normAr(p.name) === normAr(q));
+  if (exact.length === 1) return { p: exact[0] };
+  const sugg = (exact.length ? exact : people.filter((p) => normAr(p.name).includes(normAr(q)) || normAr(q).includes(normAr(p.name))))
+    .map((p) => ({ id: p.id, name: p.name }));
+  return { p: null, sugg, ambiguous: exact.length > 1 };
+}
+
+server.registerTool('list_ledger_accounts', {
+  title: 'حسابات الدفتر',
+  description: 'الحسابات بدفتر الحسابات المشترك (اللي إنت ورزان بتشوفوه) مع الرصيد، القطع الراجعة المعلّقة، سقف الشهر والمتبقي منه، وعدّاد الطلبيات. نفس حسابات الموقع. قراءة فقط.',
+  inputSchema: { query: z.string().optional().describe('جزء من الاسم (اختياري)') },
+  annotations: { readOnlyHint: true }
+}, async ({ query }) => {
+  try {
+    await loadLedger();
+    const q = query ? normAr(query) : '';
+    const list = L.people().filter((p) => !q || normAr(p.name).includes(q)).map(accountView);
+    const g = L.globalStats();
+    return text({ total: g, accounts: list });
+  } catch (e) { return fail(e.message); }
+});
+
+server.registerTool('add_ledger_transaction', {
+  title: 'حركة على الدفتر',
+  description: [
+    'بيضيف حركة على حساب بدفتر الحسابات المشترك (بتبيّن عندك وعند رزان فوراً). نفس نافذة «حركة جديدة» بالموقع.',
+    'type="deposit": ترصيد مبلغ (amount) — بينضاف للرصيد فوراً وبينحسب من سقف الشهر.',
+    'type="order": طلبية — order_price بينخصم فوراً، و return_price (اختياري) بيرجع بعد أيام الدوام (بدون جمعة وسبت).',
+    'الحساب لازم يطابق الاسم الكامل أو الـ id من list_ledger_accounts. كل الأرقام من المستخدم حرفياً.',
+    'دايماً dry_run=true أول واعرض النتيجة، وبعد موافقة المستخدم dry_run=false.'
+  ].join('\n'),
+  inputSchema: {
+    dry_run: z.boolean(),
+    account: z.string().min(1).describe('اسم الحساب الكامل أو id'),
+    type: z.enum(['deposit', 'order']),
+    amount: z.number().positive().optional().describe('بس مع deposit'),
+    order_price: z.number().positive().optional().describe('بس مع order'),
+    return_price: z.number().min(0).optional().describe('سعر القطعة الراجعة — بس مع order (اختياري)'),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD — افتراضي اليوم زي الموقع'),
+    note: z.string().optional()
+  }
+}, async (a) => {
+  try {
+    await loadLedger();
+    const problems = [];
+    if (a.type === 'deposit') {
+      if (a.amount === undefined) problems.push('deposit بده amount');
+      if (a.order_price !== undefined || a.return_price !== undefined) problems.push('order_price و return_price بس مع type=order');
+    } else {
+      if (a.order_price === undefined) problems.push('order بده order_price');
+      if (a.amount !== undefined) problems.push('amount بس مع type=deposit');
+    }
+    const found = findAccount(a.account);
+    if (!found.p) {
+      problems.push(found.ambiguous
+        ? `في أكثر من حساب باسم «${a.account}» — حدّد بالـ id`
+        : `ما في حساب «${a.account}» بالضبط.${found.sugg.length ? '' : ' (ولا اقتراحات)'}`);
+    }
+    if (problems.length) return fail('ما انضافت الحركة — اسأل المستخدم:', { problems, suggestions: found.sugg || [] });
+
+    const member = await getDoc(doc(db, 'members', uid));
+    const by = (member.exists() && member.data().name) || '';
+    const p = found.p;
+    const before = L.statsOf(p.id);
+    const s = L.settings();
+    const t = L.buildTx({
+      personId: p.id,
+      type: a.type === 'deposit' ? 'in' : 'out',
+      amount: a.amount, orderPrice: a.order_price, returnPrice: a.return_price,
+      date: a.date, note: a.note, by
+    }, s);
+
+    const warnings = [];
+    if (t.type === 'in' && t.amount > before.capLeft) warnings.push(`المبلغ بتجاوز المتبقي من سقف الشهر (${before.capLeft} من ${before.cap})`);
+    const counted = t.type === 'out' && t.orderPrice >= s.counterMin && t.orderPrice <= s.counterMax;
+    const after = t.type === 'in' ? C.round2(before.balance + t.amount) : C.round2(before.balance - t.orderPrice);
+
+    const preview = {
+      dry_run: a.dry_run,
+      account: p.name,
+      transaction: {
+        type: a.type, amount: t.amount || undefined, orderPrice: t.orderPrice || undefined, returnPrice: t.returnPrice || undefined,
+        date: t.date.slice(0, 10), note: t.note, by: t.by,
+        returnAddedOn: t.releaseDate ? L.releaseOf(t).toISOString().slice(0, 10) : undefined
+      },
+      balanceBefore: before.balance,
+      balanceAfter: after,
+      ordersCounter: t.type === 'out' ? (counted ? `بيصير ${before.orders + 1}` : `بيضل ${before.orders} (المبلغ برّا ${s.counterMin}–${s.counterMax})`) : undefined,
+      becomesReady: after < Number(s.readyThreshold) && !before.ready ? true : undefined,
+      warnings: warnings.length ? warnings : undefined
+    };
+    if (a.dry_run) return text(Object.assign({ note: 'معاينة فقط — ما انحفظ إشي. اعرضها على المستخدم واطلب موافقته.' }, preview));
+
+    const { id, ...data } = t;
+    await setDoc(doc(db, 'tx', id), JSON.parse(JSON.stringify(data)));
+    return text(Object.assign({ note: 'انحفظت الحركة وبتبيّن بالدفتر عند الكل.', id }, preview));
   } catch (e) { return fail(e.message); }
 });
 
