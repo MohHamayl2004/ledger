@@ -129,11 +129,17 @@ function page({ handle, clientName, redirectHost, clientDomain, loopback, error,
 </html>`;
 }
 
-const htmlHeaders = (extra) => {
+/* form-action لازم يسمح بـ Claude كمان: بعد الدخول الصحيح السيرفر بيحوّل لـ claude.ai،
+   والمتصفح بيطبّق form-action على التحويل — بدونها زر الدخول ما بيعمل إشي */
+const formTargets = (env) => allowedHosts(env || {})
+  .map((h) => (h === 'localhost' || h === '127.0.0.1' ? `http://${h}:*` : `https://${h} https://*.${h}`))
+  .join(' ');
+
+const htmlHeaders = (extra, env) => {
   const h = new Headers(extra || {});
   h.set('Content-Type', 'text/html; charset=utf-8');
   h.set('X-Frame-Options', 'DENY');
-  h.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'");
+  h.set('Content-Security-Policy', `default-src 'none'; style-src 'unsafe-inline'; form-action 'self' ${formTargets(env)}; frame-ancestors 'none'`);
   h.set('Referrer-Policy', 'no-referrer');
   h.set('Cache-Control', 'no-store');
   return h;
@@ -156,7 +162,7 @@ async function authorize(request, env) {
       clientDomain: details.clientDomain,
       redirectHost: details.redirectHost,
       loopback: details.redirectIsLoopback
-    }), { headers: htmlHeaders(consent.headers) });
+    }), { headers: htmlHeaders(consent.headers, env) });
   }
 
   if (request.method === 'POST') {
@@ -168,7 +174,7 @@ async function authorize(request, env) {
       handle, email, error,
       clientName: String(form.get('client_name') || ''),
       redirectHost: String(form.get('redirect_host') || '')
-    }), { status: 400, headers: htmlHeaders() });
+    }), { status: 400, headers: htmlHeaders(null, env) });
 
     // ٠) هل المتصفح بعت علامة الصفحة (cookie)؟ في متصفحات/نوافذ بتمنع الكوكيز.
     //    إذا ما وصلت، منكمّل بدونها: منقرأ الطلب من الرابط نفسه (parseAuthRequest
@@ -201,7 +207,7 @@ async function authorize(request, env) {
       // بدون كوكي: نفس الطلب من الرابط، بكل فحوصات المكتبة
       console.log('consent cookie missing — using URL request', JSON.stringify({ got: names.length, ua: request.headers.get('User-Agent') }));
       authReq = await oauth.parseAuthRequest(request);
-      headers = htmlHeaders();
+      headers = htmlHeaders(null, env);
     }
     if (!hostAllowed(env, authReq.redirectUri)) return plain('هذا الربط مسموح بس لـ Claude.', 403);
 
