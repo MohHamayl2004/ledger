@@ -170,6 +170,17 @@ async function authorize(request, env) {
       redirectHost: String(form.get('redirect_host') || '')
     }), { status: 400, headers: htmlHeaders() });
 
+    // ٠) قبل كلمة السر: نتأكد إنه المتصفح بعت علامة الصفحة (cookie)
+    //    — نفس فحص المكتبة، بس برسالة واضحة وبأسماء الكوكيز اللي وصلت (بدون قيمها)
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(handle));
+    const hash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    const want = `__Host-oauth-consent-${hash.slice(0, 16)}`;
+    const names = String(request.headers.get('Cookie') || '').split(';').map((p) => p.split('=')[0].trim()).filter(Boolean);
+    if (!names.includes(want)) {
+      console.log('consent cookie missing', JSON.stringify({ want, got: names, ua: request.headers.get('User-Agent') }));
+      return restartPage(`This authorization was not started in this browser · cookies received: ${names.length ? names.join(', ') : 'none'}`);
+    }
+
     // ١) نتأكد من الحساب قبل ما نستهلك الطلب (handle بيشتغل مرة وحدة)
     const ep = endpoints(env.FIREBASE_EMULATOR === '1');
     let auth;
