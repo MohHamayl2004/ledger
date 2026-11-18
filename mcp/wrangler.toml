@@ -8,7 +8,7 @@ compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 # وحط الـ id اللي بيطلع هون.
 [[kv_namespaces]]
 binding = "OAUTH_KV"
-id = "PUT_KV_NAMESPACE_ID_HERE"
+id = "79d7fefce0f043d4b1eac2a03aa13dac"
 
 [vars]
 # رابط الـ Worker بعد النشر (عدّله إذا اسم الـ subdomain غير)
