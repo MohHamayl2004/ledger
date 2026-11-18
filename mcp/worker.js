@@ -197,6 +197,25 @@ async function authorize(request, env) {
   return plain('Method not allowed', 405);
 }
 
+/** صفحة «ابدأ من جديد» — بدل رسائل المكتبة الإنجليزية */
+function restartPage(detail) {
+  const d = String(detail || '');
+  const why = /not started in this browser|different browser/i.test(d)
+    ? 'صفحة الدخول انفتحت بمتصفح أو جلسة غير هاي، أو مرّ عليها أكثر من 10 دقائق.'
+    : /expired|already used/i.test(d)
+      ? 'صفحة الدخول انتهت صلاحيتها (10 دقائق) أو انستعملت قبل.'
+      : 'صار خطأ بطلب الربط.';
+  return new Response(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>ابدأ الربط من جديد</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,Tahoma,sans-serif;background:#f4f5fb;color:#14161f;padding:16px}
+@media (prefers-color-scheme:dark){body{background:#0e1017;color:#eef0f6}}
+.c{max-width:440px;line-height:1.8}h1{font-size:20px}small{opacity:.6}</style></head>
+<body><div class="c"><h1>لازم تبدأ الربط من جديد</h1>
+<p>${esc(why)}</p>
+<p>سكّر هاي الصفحة، ارجع لـ Claude ← Settings ← Connectors، واضغط <b>Connect</b> مرة ثانية — وسجّل دخول خلال 10 دقائق بنفس الصفحة اللي بتنفتح.</p>
+<p><small>${esc(d)}</small></p></div></body></html>`, { status: 400, headers: htmlHeaders() });
+}
+
 const DefaultHandler = {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -208,8 +227,8 @@ const DefaultHandler = {
       return plain('Not found', 404);
     } catch (error) {
       if (error instanceof AuthorizationError && error.redirectTo) return Response.redirect(error.redirectTo, 302);
-      if (error instanceof AuthorizationError) return plain(error.description || 'انتهت صلاحية الصفحة — ابدأ الربط من جديد من Claude.');
-      if (error instanceof CimdFetchError) return plain('ما قدرنا نتأكد من التطبيق اللي طلب الدخول.');
+      if (error instanceof AuthorizationError) return restartPage(error.description);
+      if (error instanceof CimdFetchError) return restartPage('ما قدرنا نتأكد من التطبيق اللي طلب الدخول.');
       throw error;
     }
   }
