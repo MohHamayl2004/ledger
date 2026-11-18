@@ -170,16 +170,15 @@ async function authorize(request, env) {
       redirectHost: String(form.get('redirect_host') || '')
     }), { status: 400, headers: htmlHeaders() });
 
-    // ٠) قبل كلمة السر: نتأكد إنه المتصفح بعت علامة الصفحة (cookie)
-    //    — نفس فحص المكتبة، بس برسالة واضحة وبأسماء الكوكيز اللي وصلت (بدون قيمها)
+    // ٠) هل المتصفح بعت علامة الصفحة (cookie)؟ في متصفحات/نوافذ بتمنع الكوكيز.
+    //    إذا ما وصلت، منكمّل بدونها: منقرأ الطلب من الرابط نفسه (parseAuthRequest
+    //    بيتحقق من العميل ورابط الرجوع و PKCE من جديد). هاد آمن هون لأنه الدخول
+    //    بيحتاج كلمة سر الموقع بكل مرة، والتوكن بيروح بس لـ Claude.
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(handle));
     const hash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
     const want = `__Host-oauth-consent-${hash.slice(0, 16)}`;
     const names = String(request.headers.get('Cookie') || '').split(';').map((p) => p.split('=')[0].trim()).filter(Boolean);
-    if (!names.includes(want)) {
-      console.log('consent cookie missing', JSON.stringify({ want, got: names, ua: request.headers.get('User-Agent') }));
-      return restartPage(`This authorization was not started in this browser · cookies received: ${names.length ? names.join(', ') : 'none'}`);
-    }
+    const hasCookie = names.includes(want);
 
     // ١) نتأكد من الحساب قبل ما نستهلك الطلب (handle بيشتغل مرة وحدة)
     const ep = endpoints(env.FIREBASE_EMULATOR === '1');
@@ -190,19 +189,31 @@ async function authorize(request, env) {
     const member = await fs.get('members', auth.uid).catch(() => null);
     if (!member) return again('هذا الحساب مش مفعّل على الموقع (مش عضو).');
 
-    // ٢) الموافقة — الطلب الأصلي من التخزين، مش من الفورم
-    const approved = await oauth.approveConsent(request, handle, { scope: SCOPES });
-    if (!hostAllowed(env, approved.request.redirectUri)) return plain('هذا الربط مسموح بس لـ Claude.', 403);
+    // ٢) الموافقة
+    let authReq;
+    let headers;
+    if (hasCookie) {
+      // الطريق العادي: الطلب الأصلي من التخزين، مربوط بهالمتصفح
+      const approved = await oauth.approveConsent(request, handle, { scope: SCOPES });
+      authReq = approved.request;
+      headers = approved.headers;
+    } else {
+      // بدون كوكي: نفس الطلب من الرابط، بكل فحوصات المكتبة
+      console.log('consent cookie missing — using URL request', JSON.stringify({ got: names.length, ua: request.headers.get('User-Agent') }));
+      authReq = await oauth.parseAuthRequest(request);
+      headers = htmlHeaders();
+    }
+    if (!hostAllowed(env, authReq.redirectUri)) return plain('هذا الربط مسموح بس لـ Claude.', 403);
 
     const { redirectTo } = await oauth.completeAuthorization({
-      request: approved.request,
+      request: authReq,
       userId: auth.uid,
       metadata: { email: auth.email, name: member.name || '' },
       scope: SCOPES,
       props: { uid: auth.uid, email: auth.email, name: member.name || '', refreshToken: auth.refreshToken }
     });
-    approved.headers.set('Location', redirectTo);
-    return new Response(null, { status: 302, headers: approved.headers });
+    headers.set('Location', redirectTo);
+    return new Response(null, { status: 302, headers });
   }
 
   return plain('Method not allowed', 405);
